@@ -1,0 +1,16 @@
+<resources>
+    <strings>
+        <string id="AppName">Roku Probe</string>
+        <string id="RokuIpTitle">Roku IP (home network only, e.g. 192.168.1.42)</string>
+    </strings>
+
+    <properties>
+        <property id="rokuIp" type="string"></property>
+    </properties>
+
+    <settings>
+        <setting propertyKey="@Properties.rokuIp" title="@Strings.RokuIpTitle">
+            <settingConfig type="alphaNumeric" />
+        </setting>
+    </settings>
+</resources>
