@@ -108,6 +108,8 @@ class TestView extends WatchUi.View {
         var res = roku.send(key, method(:onResult));
         if (res == SEND_BAD_IP) {
             status = "Set a home IP in settings";
+        } else if (res == SEND_NO_PHONE) {
+            status = "Phone not connected";
         } else if (res != SEND_STARTED) {
             // busy, tap dropped. put things back for the request still in flight
             status = prevStatus;
@@ -124,7 +126,7 @@ class TestView extends WatchUi.View {
         } else if (result == RESULT_NO_PHONE) {
             status = "Phone not connected";
         } else if (result == RESULT_TIMED_OUT) {
-            status = "Timed out";
+            status = "Can't reach Roku";
         } else if (result == RESULT_HTTP_BLOCKED) {
             status = "Phone blocks HTTP";
         } else {

@@ -2,6 +2,8 @@ import Toybox.Application;
 import Toybox.Communications;
 import Toybox.Lang;
 import Toybox.PersistedContent;
+import Toybox.System;
+import Toybox.Timer;
 
 // the only place that talks to the roku. fixed keys only, nothing from free text
 
@@ -22,7 +24,8 @@ enum {
     SEND_STARTED,
     SEND_BAD_IP,
     SEND_BUSY,
-    SEND_BAD_KEY
+    SEND_BAD_KEY,
+    SEND_NO_PHONE
 }
 
 // what comes back once the request is done
@@ -44,6 +47,8 @@ const KEY_PATHS = [
     "/keypress/Home",
     "/keypress/Play"
 ];
+
+const REPLY_TIMEOUT_MS = 5000; // give up after 5 s, no retry
 
 // only 10.x, 172.16-31.x, 192.168.x. digits and dots only, 4 parts, 0-255
 function isPrivateIp(s as String) as Boolean {
@@ -88,8 +93,11 @@ function isPrivateIp(s as String) as Boolean {
 class RokuConnector {
     hidden var busy as Boolean = false;
     hidden var done as Method? = null;
+    hidden var reqId as Number = 0;
+    hidden var timer as Timer.Timer;
 
     function initialize() {
+        timer = new Timer.Timer();
     }
 
     // fires one keypress. done gets a RESULT_* later, only if this returns SEND_STARTED
@@ -105,20 +113,32 @@ class RokuConnector {
         if (!(ip instanceof String) || !isPrivateIp(ip)) {
             return SEND_BAD_IP;
         }
+        // no phone, no point trying. web requests go through the phone
+        if (!System.getDeviceSettings().phoneConnected) {
+            return SEND_NO_PHONE;
+        }
         busy = true;
         done = cb;
+        reqId++;
         // text/plain so the empty reply isn't parsed as json. we never read it anyway
         var opts = {
             :method => Communications.HTTP_REQUEST_METHOD_POST,
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_TEXT_PLAIN
         };
-        // cb can fire before send() returns
-        Communications.makeWebRequest("http://" + ip + ":8060" + KEY_PATHS[key], null, opts, method(:onReply));
+        // timer first, cb can fire before send() returns
+        timer.start(method(:onTimeout), REPLY_TIMEOUT_MS, false);
+        // we don't keep the RokuReply, only makeWebRequest holds it. no ref cycle
+        Communications.makeWebRequest("http://" + ip + ":8060" + KEY_PATHS[key], null, opts,
+            new RokuReply(self, reqId).method(:onReply));
         return SEND_STARTED;
     }
 
-    // only the code matters, the body is ignored
-    function onReply(responseCode as Number, data as Null or ByteArray or Dictionary or String or PersistedContent.Iterator) as Void {
+    // called by RokuReply. anything that isn't the current request gets dropped
+    function reply(id as Number, responseCode as Number) as Void {
+        if (!busy || id != reqId) {
+            return;
+        }
+        timer.stop();
         busy = false;
         var result = RESULT_FAILED;
         if (responseCode == 200 || responseCode == -400) {
@@ -130,10 +150,41 @@ class RokuConnector {
         } else if (responseCode == -1001) {
             result = RESULT_HTTP_BLOCKED;
         }
+        finish(result);
+    }
+
+    // roku took too long. bump the id first so a late reply gets ignored
+    function onTimeout() as Void {
+        if (!busy) {
+            return;
+        }
+        reqId++;
+        busy = false;
+        Communications.cancelAllRequests();
+        finish(RESULT_TIMED_OUT);
+    }
+
+    hidden function finish(result as Number) as Void {
         var cb = done;
         done = null;
         if (cb != null) {
             cb.invoke(result);
         }
+    }
+}
+
+// one per request, remembers which one it was
+class RokuReply {
+    hidden var conn as RokuConnector;
+    hidden var id as Number;
+
+    function initialize(c as RokuConnector, i as Number) {
+        conn = c;
+        id = i;
+    }
+
+    // only the code matters, the body is ignored
+    function onReply(responseCode as Number, data as Null or ByteArray or Dictionary or String or PersistedContent.Iterator) as Void {
+        conn.reply(id, responseCode);
     }
 }
