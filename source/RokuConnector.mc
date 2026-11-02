@@ -16,7 +16,10 @@ enum {
     KEY_SELECT,
     KEY_BACK,
     KEY_HOME,
-    KEY_PLAY
+    KEY_PLAY,
+    KEY_VOL_UP,
+    KEY_VOL_DOWN,
+    KEY_MUTE
 }
 
 // what send() says right away
@@ -45,7 +48,10 @@ const KEY_PATHS = [
     "/keypress/Select",
     "/keypress/Back",
     "/keypress/Home",
-    "/keypress/Play"
+    "/keypress/Play",
+    "/keypress/VolumeUp", // tv only, sticks ignore volume
+    "/keypress/VolumeDown",
+    "/keypress/VolumeMute"
 ];
 
 const REPLY_TIMEOUT_MS = 5000; // give up after 5 s, no retry
