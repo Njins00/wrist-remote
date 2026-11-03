@@ -27,11 +27,11 @@ const PILL_R = 12;
 const PILL_PAD = 6;      // black strip around the pill
 const CHEV_ZONE = 18;    // % that taps to scroll
 
-// round, 416 px: back button + title as one centred group from y 44 down
-const RHDR_Y = 44;
+// round, 416 px: back button + title as one centred group from y 48 down
+const RHDR_Y = 48;
 const RHDR_BTN = 34;
 const RHDR_GAP = 10;
-const RHDR_TITLE_W = 176; // group never wider than 220
+const RHDR_TITLE_W = 192; // group never wider than 236. fits "Which device?"
 const RHDR_BELOW = 8;
 // round steps: 280 column, shown between the header and y 346 only
 const RHELP_X = 68;
@@ -131,7 +131,7 @@ function drawChevPill(dc as Graphics.Dc, cy as Number, dir as Number, stripTop a
 }
 
 // title room, screen px: from the title's x to the right margin.
-// round: fixed 176 so the centred group stays inside the circle
+// round: fixed 192 so the centred group stays inside the circle
 function headerTitleW(w as Number, h as Number) as Number {
     if (isRound()) {
         return rp(RHDR_TITLE_W, w, h);
@@ -256,7 +256,7 @@ function roundBlockH(dc as Graphics.Dc, title as String) as Number {
     return block > bs ? block : bs;
 }
 
-// round: button + gap + title centred as one group. block starts at y 44
+// round: button + gap + title centred as one group. block starts at y 48
 // and only grows down, where the circle is wider
 function drawRoundHeader(dc as Graphics.Dc, title as String) as Void {
     var w = dc.getWidth();
