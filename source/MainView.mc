@@ -7,8 +7,6 @@ import Toybox.WatchUi;
 
 // main remote screen. numbers are mockup px (320x360), scaled to the real screen
 
-const IDLE_MS = 300000; // 5 min with no taps, then back to the watch face
-
 const MOCK_W = 320;
 const MOCK_H = 360;
 const SLACK = 4; // extra px around each button for fat fingers
@@ -67,7 +65,6 @@ class MainView extends WatchUi.View {
     hidden var keys as Array<Number> = CELL_KEYS;
     hidden var rects as Array<Array<Number>> = CELL_RECTS;
     var popup as Popup or Null = null;
-    var idle as Timer.Timer;
     var flashTimer as Timer.Timer;
     var header as Header;
     hidden var played as Boolean = false;  // name marquee only plays on the first show
@@ -79,7 +76,6 @@ class MainView extends WatchUi.View {
     function initialize(r as RokuConnector) {
         View.initialize();
         roku = r;
-        idle = new Timer.Timer();
         flashTimer = new Timer.Timer();
         header = new Header();
         loadMode();
@@ -111,7 +107,7 @@ class MainView extends WatchUi.View {
         }
     }
 
-    // idle keeps running so it still counts on the help page. dies with the app anyway
+    // idle lives in the app, it keeps counting on the help page
     function onHide() as Void {
         flashTimer.stop();
         flashCell = -1;
@@ -127,14 +123,9 @@ class MainView extends WatchUi.View {
         WatchUi.requestUpdate();
     }
 
-    // any tap resets the idle clock
+    // any tap resets the app's idle clock. HelpDelegate calls this too
     function poke() as Void {
-        idle.stop();
-        idle.start(method(:bail), IDLE_MS, false);
-    }
-
-    function bail() as Void {
-        System.exit();
+        getRemoteApp().poke();
     }
 
     // which cell is under mx,my (mockup px). -1 if none
