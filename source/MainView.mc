@@ -123,7 +123,7 @@ class MainView extends WatchUi.View {
         WatchUi.requestUpdate();
     }
 
-    // any tap resets the app's idle clock. HelpDelegate calls this too
+    // any tap resets the app's idle clock
     function poke() as Void {
         getRemoteApp().poke();
     }
@@ -168,7 +168,7 @@ class MainView extends WatchUi.View {
                 var kind = p.getKind();
                 closePopup();
                 var help = new HelpView(kind);
-                WatchUi.pushView(help, new HelpDelegate(help, self), WatchUi.SLIDE_IMMEDIATE);
+                WatchUi.pushView(help, new HelpDelegate(help), WatchUi.SLIDE_IMMEDIATE);
             }
             return;
         }
@@ -242,7 +242,7 @@ class MainView extends WatchUi.View {
         flashTimer.stop();
         flashCell = -1;
         header.stop();
-        popup = new Popup(kind);
+        popup = new Popup(kind, true);
     }
 
     function popupOpen() as Boolean {
@@ -313,7 +313,7 @@ class MainView extends WatchUi.View {
         header.draw(dc, self, dim);
 
         if (p != null) {
-            p.draw(dc, self);
+            p.draw(dc);
         }
     }
 
@@ -334,24 +334,19 @@ class MainView extends WatchUi.View {
         return r < 1 ? 1 : r;
     }
 
-    // icons are drawn, no text. sizes in mockup px around the button centre
+    // icons are drawn, no text. sizes in mockup px around the button centre.
+    // arrow and chevrons are shared with the help pages (HelpView.mc)
     function drawIcon(dc as Graphics.Dc, key as Number, cx as Number, cy as Number) as Void {
         if (key == KEY_UP) {
-            chevron(dc, cx, cy, 0, -1);
+            drawChevron(dc, cx, cy, 0, -1);
         } else if (key == KEY_DOWN) {
-            chevron(dc, cx, cy, 0, 1);
+            drawChevron(dc, cx, cy, 0, 1);
         } else if (key == KEY_LEFT) {
-            chevron(dc, cx, cy, -1, 0);
+            drawChevron(dc, cx, cy, -1, 0);
         } else if (key == KEY_RIGHT) {
-            chevron(dc, cx, cy, 1, 0);
+            drawChevron(dc, cx, cy, 1, 0);
         } else if (key == KEY_BACK) {
-            // arrow left with a stem
-            var a = rs(11);
-            var t = rs(7);
-            dc.setPenWidth(rs(4));
-            dc.drawLine(cx - a, cy, cx + a, cy);
-            dc.drawLine(cx - a, cy, cx - a + t, cy - t);
-            dc.drawLine(cx - a, cy, cx - a + t, cy + t);
+            drawBackArrow(dc, cx, cy);
         } else if (key == KEY_HOME) {
             // roof + walls + floor, open under the roof
             var r = rs(12);
@@ -404,19 +399,6 @@ class MainView extends WatchUi.View {
         var y = sy(ROCKER[1]);
         dc.fillRoundedRectangle(x, y, sx(ROCKER[0] + ROCKER[2]) - x,
             sy(ROCKER[1] + ROCKER[3]) - y, rs(ROCKER[4]));
-    }
-
-    // two thick lines pointing (dx,dy)
-    function chevron(dc as Graphics.Dc, cx as Number, cy as Number, dx as Number, dy as Number) as Void {
-        var d = rs(6);  // half depth
-        var a = rs(12); // half width
-        var tipX = cx + dx * d;
-        var tipY = cy + dy * d;
-        var bx = cx - dx * d;
-        var by = cy - dy * d;
-        dc.setPenWidth(rs(5));
-        dc.drawLine(bx - dy * a, by + dx * a, tipX, tipY);
-        dc.drawLine(bx + dy * a, by - dx * a, tipX, tipY);
     }
 }
 
