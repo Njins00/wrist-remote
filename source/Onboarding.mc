@@ -20,6 +20,10 @@ enum {
 
 const COL_TILE_BG = 0x24153F;
 const COL_TILE_ICON = 0xB99BFA;
+// setup behind the pop-up. solid colours like the remote's dim ones
+const COL_TILE_BG_DIM = 0x120A1F;
+const COL_TILE_ICON_DIM = 0x453A5E;
+const COL_SOFT_TEXT_DIM = 0x45484A;
 
 // mockup px. one big button at the bottom of each screen
 const ONB_BTN_X = 38;
@@ -40,9 +44,6 @@ const SETUP_TEXT_X = 48;
 const SETUP_TEXT_R = 304; // right edge of the step text
 const SETUP_GAP = 8;      // between the content and the pinned button strip
 
-// biggest first. label/card fonts pick from here
-const ONB_FONTS = [Graphics.FONT_SMALL, Graphics.FONT_TINY, Graphics.FONT_XTINY];
-
 // type screen: x, y, w, h. TV first, same order as TYPE_*.
 // 96 high so two xtiny lines (39 px) fit inside the 8 px padding
 const TYPE_CARDS = [
@@ -57,13 +58,13 @@ class OnboardView extends WatchUi.View {
     hidden var step as Number;
     hidden var first as Number;          // back on this screen exits
     hidden var picked as Number = -1;    // TYPE_*, -1 = nothing yet
-    hidden var noIp as Boolean = false;  // Check again found nothing
+    // "No valid home IP yet", OK only. setup screen only
+    hidden var popup as Popup or Null = null;
     // setup layout, worked out on the first draw (needs a dc). screen px,
     // unscrolled. texts never change
     hidden var wrapped as Boolean = false;
     hidden var stepText as Array<String> = [] as Array<String>;
     hidden var stepY as Array<Number> = [] as Array<Number>;
-    hidden var noteY as Number = 0;      // centre of the amber line
     hidden var areaBottom as Number = 0; // content stops here, button strip below
     // setup scroll, only if the content doesn't fit above the button
     hidden var offset as Number = 0;
@@ -77,7 +78,7 @@ class OnboardView extends WatchUi.View {
 
     // ip is good now. already onboarded = straight to the remote
     hidden function ipReady() as Void {
-        noIp = false;
+        popup = null;
         if (isOnboarded()) {
             getRemoteApp().showRemote();
             return;
@@ -86,17 +87,18 @@ class OnboardView extends WatchUi.View {
         WatchUi.requestUpdate();
     }
 
-    // only re-reads the setting, no network
+    // only re-reads the setting, no network. nothing yet = OK-only pop-up
     hidden function checkAgain() as Void {
         if (homeIpSet()) {
             ipReady();
         } else {
-            noIp = true;
+            popup = new Popup(POP_NO_IP, false);
             WatchUi.requestUpdate();
         }
     }
 
-    // ip saved in the phone app while we're on the setup screen
+    // ip saved in the phone app while we're on the setup screen.
+    // closes the pop-up too if it's open
     function refreshSettings() as Void {
         if (step == STEP_SETUP && homeIpSet()) {
             ipReady();
@@ -105,31 +107,38 @@ class OnboardView extends WatchUi.View {
 
     // Continue. only Roku TVs do volume over the network, so TV = volume
     // buttons on, stick = off (can still be turned on in the phone settings).
-    // onboarded gets set here in 5.4
+    // onboarded = from now on the app opens on the remote. watch only
     hidden function next() as Void {
         if (picked < 0) {
             return;
         }
         Application.Storage.setValue("deviceType", picked);
         Application.Properties.setValue("volumeButtons", picked == TYPE_TV);
+        Application.Storage.setValue("onboarded", true);
         getRemoteApp().showRemote();
     }
 
-    // one step back. false on the first screen, so back exits
+    // closes the pop-up first, else one step back. false on the first
+    // screen, so back exits
     function back() as Boolean {
+        if (popup != null) {
+            popup = null;
+            WatchUi.requestUpdate();
+            return true;
+        }
         if (step == first) {
             return false;
         }
         step--;
-        noIp = false;
         offset = 0;
         WatchUi.requestUpdate();
         return true;
     }
 
-    // dir 1 = show more below, -1 = back up. setup only, ~60% of the area per step
+    // dir 1 = show more below, -1 = back up. setup only, ~60% of the area
+    // per step. nothing while the pop-up is open
     function scroll(dir as Number) as Void {
-        if (step != STEP_SETUP || maxOffset == 0) {
+        if (popup != null || step != STEP_SETUP || maxOffset == 0) {
             return;
         }
         offset += dir * areaBottom * 60 / 100;
@@ -145,6 +154,15 @@ class OnboardView extends WatchUi.View {
         var h = ds.screenHeight;
         var mx = x * MOCK_W / w;
         var my = y * MOCK_H / h;
+        // pop-up open: only OK does anything
+        var p = popup;
+        if (p != null) {
+            if (p.buttonAt(mx, my) == POP_HIT_OK) {
+                popup = null;
+                WatchUi.requestUpdate();
+            }
+            return;
+        }
         if (step == STEP_SETUP) {
             // button first, then the chevron zones (top/bottom 18% of the
             // area, only while that chevron shows)
@@ -193,6 +211,10 @@ class OnboardView extends WatchUi.View {
         } else {
             drawType(dc, w, h);
         }
+        var p = popup;
+        if (p != null) {
+            p.draw(dc);
+        }
     }
 
     // same steps as the "Set your Roku's IP" help page. each wraps to as many
@@ -217,9 +239,7 @@ class OnboardView extends WatchUi.View {
             stepY.add(y);
             y += lines * lineH + hy(6, h);
         }
-        // space for the amber line is always kept, so nothing jumps when it shows
-        noteY = y + lineH / 2;
-        var bottom = y + lineH + hy(SETUP_GAP, h);
+        var bottom = y + hy(SETUP_GAP, h);
         areaBottom = hy(ONB_BTN_Y - SETUP_GAP, h);
         maxOffset = bottom > areaBottom ? bottom - areaBottom : 0;
         wrapped = true;
@@ -229,28 +249,33 @@ class OnboardView extends WatchUi.View {
         if (!wrapped) {
             layout(dc, w, h);
         }
+        // pop-up open: everything dim, no chevrons
+        var dim = popup != null;
+        var tileBg = dim ? COL_TILE_BG_DIM : COL_TILE_BG;
+        var tileIcon = dim ? COL_TILE_ICON_DIM : COL_TILE_ICON;
+        var ink = dim ? COL_TEXT_DIM : COL_TEXT;
 
         // violet tile with a little tv drawn from shapes
         var tx = hx(TILE_X, w);
         var ty = hy(TILE_Y, h) - offset;
         var tw = hx(TILE_X + TILE, w) - tx;
         var th = hy(TILE_Y + TILE, h) - ty;
-        dc.setColor(COL_TILE_BG, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(tileBg, Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(tx, ty, tw, th, hr(TILE_R, w, h));
         var cx = tx + tw / 2;
         var cy = ty + th / 2 - hr(3, w, h);
         var sw = hr(28, w, h);
         var sh = hr(19, w, h);
         var e = hr(3, w, h);
-        dc.setColor(COL_TILE_ICON, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(tileIcon, Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(cx - sw / 2, cy - sh / 2, sw, sh, hr(4, w, h));
-        dc.setColor(COL_TILE_BG, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(tileBg, Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(cx - sw / 2 + e, cy - sh / 2 + e, sw - e * 2, sh - e * 2, hr(2, w, h));
-        dc.setColor(COL_TILE_ICON, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(tileIcon, Graphics.COLOR_TRANSPARENT);
         dc.fillRectangle(cx - hr(7, w, h), cy + sh / 2 + e, hr(14, w, h), e); // stand
 
         var title = "Set up your Roku";
-        dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
+        dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
         dc.drawText(w / 2, hy(SETUP_TITLE_Y, h) - offset, fitFont(dc, title, hx(280, w)), title,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
@@ -260,72 +285,31 @@ class OnboardView extends WatchUi.View {
         for (var i = 0; i < stepText.size(); i++) {
             var y = stepY[i] - offset;
             var ny = y + lineH / 2;
-            dc.setColor(COL_BTN, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(dim ? COL_BTN_DIM : COL_BTN, Graphics.COLOR_TRANSPARENT);
             dc.fillCircle(nx, ny, hr(SETUP_NUM_R, w, h));
-            dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
             dc.drawText(nx, ny, Graphics.FONT_XTINY, (i + 1).toString(),
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            dc.setColor(COL_SOFT_TEXT, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(dim ? COL_SOFT_TEXT_DIM : COL_SOFT_TEXT, Graphics.COLOR_TRANSPARENT);
             dc.drawText(hx(SETUP_TEXT_X, w), y, Graphics.FONT_XTINY, stepText[i], Graphics.TEXT_JUSTIFY_LEFT);
         }
 
-        // Check again found nothing: say so under the steps
-        if (noIp) {
-            dc.setColor(COL_WARN, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(w / 2, noteY - offset, Graphics.FONT_XTINY, "No valid home IP yet",
-                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        // shared chevron pills (HelpView.mc), only while there's more that
+        // way. down sits just above the button strip, up at the top
+        var half = PILL_H / 2;
+        if (!dim && offset < maxOffset) {
+            var downY = areaBottom - hy(PILL_PAD + half, h);
+            drawChevPill(dc, downY, 1, downY - hy(half + PILL_PAD, h), areaBottom);
         }
-
-        // chevrons only while there's more that way
-        if (offset < maxOffset) {
-            chevron(dc, areaBottom - hy(18, h), 1, w, h);
-        }
-        if (offset > 0) {
-            chevron(dc, hy(22, h), -1, w, h);
+        if (!dim && offset > 0) {
+            var upY = hy(PILL_PAD + half, h);
+            drawChevPill(dc, upY, -1, 0, upY + hy(half + PILL_PAD, h));
         }
 
         // pinned: black strip so scrolled content slides under the button
         dc.setColor(COL_BG, COL_BG);
         dc.fillRectangle(0, areaBottom, w, h - areaBottom);
-        drawButton(dc, w, h, "Check again", true);
-    }
-
-    // pill with a chevron on a black strip, like the help page (copy, merged in 5.3).
-    // dir 1 points down, -1 up
-    hidden function chevron(dc as Graphics.Dc, cy as Number, dir as Number, w as Number, h as Number) as Void {
-        var pw = hx(CHEV_W, w);
-        var ph = hy(CHEV_H, h);
-        var pad = hy(6, h);
-        dc.setColor(COL_BG, COL_BG);
-        if (dir > 0) {
-            dc.fillRectangle(0, cy - ph / 2 - pad, w, areaBottom - (cy - ph / 2 - pad));
-        } else {
-            dc.fillRectangle(0, 0, w, cy + ph / 2 + pad);
-        }
-        var cx = w / 2;
-        dc.setColor(COL_BTN, Graphics.COLOR_TRANSPARENT);
-        dc.fillRoundedRectangle(cx - pw / 2, cy - ph / 2, pw, ph, ph / 2);
-
-        var a = hr(12, w, h);
-        var d = hr(6, w, h);
-        dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
-        dc.setPenWidth(hr(4, w, h));
-        dc.drawLine(cx - a, cy - dir * d, cx, cy + dir * d);
-        dc.drawLine(cx + a, cy - dir * d, cx, cy + dir * d);
-        dc.setPenWidth(1);
-    }
-
-    // biggest font from ONB_FONTS (starting at index start) that fits maxW and
-    // maxH. returns the index, ends at xtiny
-    hidden function boxFont(dc as Graphics.Dc, text as String, maxW as Number, maxH as Number, start as Number) as Number {
-        var last = ONB_FONTS.size() - 1;
-        for (var i = start; i < last; i++) {
-            var f = ONB_FONTS[i] as Graphics.FontDefinition;
-            if (dc.getTextWidthInPixels(text, f) <= maxW && dc.getFontHeight(f) <= maxH) {
-                return i;
-            }
-        }
-        return last;
+        drawButton(dc, w, h, "Check again", true, dim);
     }
 
     hidden function drawType(dc as Graphics.Dc, w as Number, h as Number) as Void {
@@ -351,37 +335,39 @@ class OnboardView extends WatchUi.View {
             var maxW = cw - hx(40, w);
             var pad = hy(8, h);
             var half = (ch - pad * 2) / 2;
-            var ti = boxFont(dc, TYPE_TITLES[i], maxW, half, 0);
-            var si = boxFont(dc, TYPE_SUBS[i], maxW, half, ti + 1) + 1;
-            if (si >= ONB_FONTS.size()) {
-                si = ONB_FONTS.size() - 1;
+            var ti = fitBox(dc, TYPE_TITLES[i], maxW, half, 0);
+            var si = fitBox(dc, TYPE_SUBS[i], maxW, half, ti + 1) + 1;
+            if (si >= FIT_FONTS.size()) {
+                si = FIT_FONTS.size() - 1;
             }
             dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(lx, y + pad + half / 2, ONB_FONTS[ti] as Graphics.FontDefinition, TYPE_TITLES[i],
+            dc.drawText(lx, y + pad + half / 2, FIT_FONTS[ti] as Graphics.FontDefinition, TYPE_TITLES[i],
                 Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
             dc.setColor(COL_SOFT_TEXT, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(lx, y + pad + half + half / 2, ONB_FONTS[si] as Graphics.FontDefinition, TYPE_SUBS[i],
+            dc.drawText(lx, y + pad + half + half / 2, FIT_FONTS[si] as Graphics.FontDefinition, TYPE_SUBS[i],
                 Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         }
 
-        drawButton(dc, w, h, "Continue", picked >= 0);
+        drawButton(dc, w, h, "Continue", picked >= 0, false);
 
         // help header: back arrow + title. becomes a device list later (home assistant)
         drawHeader(dc, "Which device?");
     }
 
-    // pill at the bottom. off = dim and ignored
-    hidden function drawButton(dc as Graphics.Dc, w as Number, h as Number, label as String, on as Boolean) as Void {
+    // pill at the bottom. off = grey and ignored. dim = behind the pop-up
+    hidden function drawButton(dc as Graphics.Dc, w as Number, h as Number, label as String,
+            on as Boolean, dim as Boolean) as Void {
         var x = hx(ONB_BTN_X, w);
         var y = hy(ONB_BTN_Y, h);
         var bw = hx(ONB_BTN_X + ONB_BTN_W, w) - x;
         var bh = hy(ONB_BTN_Y + ONB_BTN_H, h) - y;
-        dc.setColor(on ? COL_ACCENT : COL_BTN, Graphics.COLOR_TRANSPARENT);
+        var fill = on ? (dim ? COL_ACCENT_DIM : COL_ACCENT) : COL_BTN;
+        dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(x, y, bw, bh, bh / 2);
-        // label font fits the width and the height (minus padding)
-        var f = boxFont(dc, label, bw - hr(16, w, h), bh - hr(8, w, h), 0);
-        dc.setColor(on ? COL_TEXT : COL_TEXT_DIM, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x + bw / 2, y + bh / 2, ONB_FONTS[f] as Graphics.FontDefinition, label,
+        // same label rule as the pop-up buttons: width - 24, height - 16, tiny at most
+        var f = fitBox(dc, label, bw - hr(24, w, h), bh - hr(16, w, h), 1);
+        dc.setColor(on && !dim ? COL_TEXT : COL_TEXT_DIM, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x + bw / 2, y + bh / 2, FIT_FONTS[f] as Graphics.FontDefinition, label,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 }

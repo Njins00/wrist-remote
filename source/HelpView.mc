@@ -26,9 +26,6 @@ const PILL_H = 40;
 const PILL_R = 12;
 const PILL_PAD = 6;      // black strip around the pill
 const CHEV_ZONE = 18;    // % that taps to scroll
-// onboarding's old pill size, goes in 5.4
-const CHEV_W = 56;
-const CHEV_H = 28;
 
 // mockup px -> screen px for pages that don't have MainView's helpers
 function hx(v as Number, w as Number) as Number {
