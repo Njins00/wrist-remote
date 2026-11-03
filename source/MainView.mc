@@ -1,3 +1,4 @@
+import Toybox.Application;
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
@@ -25,11 +26,7 @@ const COL_BTN_DIM = 0x0E0F11;
 const COL_TEXT_DIM = 0x5A5C5D;
 const COL_ACCENT_DIM = 0x2F135F;
 
-const OK_CX = 160;
-const OK_CY = 171;
-const OK_R = 42;
-
-// OK first so it wins where its slack touches an arm
+// volume off. OK first so it wins where its slack touches an arm
 const CELL_KEYS = [KEY_SELECT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_BACK, KEY_HOME, KEY_PLAY];
 // x, y, w, h, corner radius. OK is its circle's box
 const CELL_RECTS = [
@@ -43,9 +40,32 @@ const CELL_RECTS = [
     [213, 292, 85, 54, 16]
 ];
 
+// volume on: smaller d-pad on the left, rocker on the right (+, mute, -).
+// bottom row same as volume off
+const VOL_KEYS = [KEY_SELECT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_BACK, KEY_HOME, KEY_PLAY, KEY_VOL_UP, KEY_MUTE, KEY_VOL_DOWN];
+const VOL_RECTS = [
+    [85, 133, 76, 76, 38],
+    [90, 70, 66, 59, 19],
+    [90, 213, 66, 59, 19],
+    [22, 138, 59, 66, 19],
+    [165, 138, 59, 66, 19],
+    [22, 292, 85, 54, 16],
+    [117, 292, 86, 54, 16],
+    [213, 292, 85, 54, 16],
+    [238, 70, 60, 67, 30],  // + end of the rocker
+    [238, 137, 60, 68, 30], // mute, the middle
+    [238, 205, 60, 67, 30]  // - end
+];
+// the whole rocker pill, drawn under its three zones
+const ROCKER = [238, 70, 60, 202, 30];
+
 class MainView extends WatchUi.View {
     var roku as RokuConnector;
     var flashCell as Number = -1; // cell drawn pressed, -1 = none
+    // layout table in use, swapped by the volume setting
+    hidden var vol as Boolean = false;
+    hidden var keys as Array<Number> = CELL_KEYS;
+    hidden var rects as Array<Array<Number>> = CELL_RECTS;
     var popup as Popup or Null = null;
     var idle as Timer.Timer;
     var flashTimer as Timer.Timer;
@@ -62,6 +82,18 @@ class MainView extends WatchUi.View {
         idle = new Timer.Timer();
         flashTimer = new Timer.Timer();
         header = new Header();
+        loadMode();
+    }
+
+    // only a real true turns the rocker on
+    hidden function loadMode() as Void {
+        var v = Application.Properties.getValue("volumeButtons");
+        vol = false;
+        if (v instanceof Boolean) {
+            vol = v;
+        }
+        keys = vol ? VOL_KEYS : CELL_KEYS;
+        rects = vol ? VOL_RECTS : CELL_RECTS;
     }
 
     // runs before the first onShow, so the header knows if the name scrolls
@@ -86,8 +118,11 @@ class MainView extends WatchUi.View {
         header.stop();
     }
 
-    // settings changed: new room name, no replay
-    function refreshHeader() as Void {
+    // settings changed: new room name and maybe the other layout, no replay
+    function refreshSettings() as Void {
+        flashTimer.stop();
+        flashCell = -1; // the index was for the old table
+        loadMode();
         header.refresh();
         WatchUi.requestUpdate();
     }
@@ -104,18 +139,24 @@ class MainView extends WatchUi.View {
 
     // which cell is under mx,my (mockup px). -1 if none
     function cellAt(mx as Number, my as Number) as Number {
-        // OK circle
-        var dx = mx - OK_CX;
-        var dy = my - OK_CY;
-        var r = OK_R + SLACK;
+        // OK circle, from its box in row 0
+        var ok = rects[0];
+        var half = ok[2] / 2;
+        var dx = mx - (ok[0] + half);
+        var dy = my - (ok[1] + half);
+        var r = half + SLACK;
         if (dx * dx + dy * dy <= r * r) {
             return 0;
         }
-        for (var i = 1; i < CELL_RECTS.size(); i++) {
-            var c = CELL_RECTS[i];
-            if (mx >= c[0] - SLACK && mx < c[0] + c[2] + SLACK &&
-                my >= c[1] - SLACK && my < c[1] + c[3] + SLACK) {
-                return i;
+        // exact hit first so the rocker zones (they touch) split cleanly, then slack
+        for (var pass = 0; pass < 2; pass++) {
+            var s = pass * SLACK;
+            for (var i = 1; i < rects.size(); i++) {
+                var c = rects[i];
+                if (mx >= c[0] - s && mx < c[0] + c[2] + s &&
+                    my >= c[1] - s && my < c[1] + c[3] + s) {
+                    return i;
+                }
             }
         }
         return -1; // header, d-pad corners, gaps
@@ -153,7 +194,7 @@ class MainView extends WatchUi.View {
             return;
         }
         var cell = cellAt(mx, my);
-        if (cell < 0 || CELL_KEYS[cell] < 0) {
+        if (cell < 0 || keys[cell] < 0) {
             return;
         }
         // new tap ends any flash still showing
@@ -164,7 +205,7 @@ class MainView extends WatchUi.View {
         var was = sending;
         sending = true;
         header.pause();
-        var res = roku.send(CELL_KEYS[cell], method(:onResult));
+        var res = roku.send(keys[cell], method(:onResult));
         if (res == SEND_BUSY) {
             sending = was; // the earlier request is still going
         } else if (res != SEND_STARTED) {
@@ -238,23 +279,44 @@ class MainView extends WatchUi.View {
         }
 
         // OK: accent circle
+        var ok = rects[0];
+        var half = ok[2] / 2;
+        var okX = sx(ok[0] + half);
+        var okY = sy(ok[1] + half);
         dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(sx(OK_CX), sy(OK_CY), rs(OK_R));
+        dc.fillCircle(okX, okY, rs(half));
         dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(sx(OK_CX), sy(OK_CY), Graphics.FONT_SMALL, "OK",
+        dc.drawText(okX, okY, Graphics.FONT_SMALL, "OK",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        // arms + bottom row
-        for (var i = 1; i < CELL_RECTS.size(); i++) {
-            var c = CELL_RECTS[i];
+        // rocker pill goes under its three zones
+        if (vol) {
+            dc.setColor(btn, Graphics.COLOR_TRANSPARENT);
+            pill(dc);
+        }
+
+        // arms + bottom row (+ rocker ends)
+        for (var i = 1; i < rects.size(); i++) {
+            var c = rects[i];
             var x = sx(c[0]);
             var y = sy(c[1]);
             var bw = sx(c[0] + c[2]) - x;
             var bh = sy(c[1] + c[3]) - y;
-            dc.setColor(i == flashCell ? COL_BTN_PRESSED : btn, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(x, y, bw, bh, rs(c[4]));
+            var key = keys[i];
+            if (key == KEY_VOL_UP || key == KEY_VOL_DOWN || key == KEY_MUTE) {
+                // pill's already drawn. pressed: light up just this zone
+                if (i == flashCell) {
+                    dc.setColor(COL_BTN_PRESSED, Graphics.COLOR_TRANSPARENT);
+                    dc.setClip(x, y, bw, bh);
+                    pill(dc);
+                    dc.clearClip();
+                }
+            } else {
+                dc.setColor(i == flashCell ? COL_BTN_PRESSED : btn, Graphics.COLOR_TRANSPARENT);
+                dc.fillRoundedRectangle(x, y, bw, bh, rs(c[4]));
+            }
             dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
-            drawIcon(dc, CELL_KEYS[i], x + bw / 2, y + bh / 2);
+            drawIcon(dc, key, x + bw / 2, y + bh / 2);
         }
 
         header.draw(dc, self, dim);
@@ -316,8 +378,41 @@ class MainView extends WatchUi.View {
             dc.fillPolygon([[cx - s, cy - b], [cx - s, cy + b], [cx, cy]]);
             dc.fillRectangle(cx + s / 4, cy - b, s / 4 + 1, b * 2);
             dc.fillRectangle(cx + s * 3 / 4, cy - b, s / 4 + 1, b * 2);
+        } else if (key == KEY_VOL_UP || key == KEY_VOL_DOWN) {
+            // plus or minus
+            var a = rs(10);
+            dc.setPenWidth(rs(4));
+            dc.drawLine(cx - a, cy, cx + a, cy);
+            if (key == KEY_VOL_UP) {
+                dc.drawLine(cx, cy - a, cx, cy + a);
+            }
+        } else if (key == KEY_MUTE) {
+            // speaker with an X next to it
+            speaker(dc, cx - rs(6), cy);
+            var a = rs(5);
+            var xc = cx + rs(10);
+            dc.setPenWidth(rs(3));
+            dc.drawLine(xc - a, cy - a, xc + a, cy + a);
+            dc.drawLine(xc - a, cy + a, xc + a, cy - a);
         }
         dc.setPenWidth(1);
+    }
+
+    // small box + cone, about 14 px wide around cx. uses the current colour
+    function speaker(dc as Graphics.Dc, cx as Number, cy as Number) as Void {
+        var l = cx - rs(7);
+        var m = cx - rs(2);
+        var r = cx + rs(7);
+        dc.fillRectangle(l, cy - rs(4), m - l, rs(8));
+        dc.fillPolygon([[m, cy - rs(4)], [r, cy - rs(10)], [r, cy + rs(10)], [m, cy + rs(4)]]);
+    }
+
+    // the whole rocker pill in the current colour
+    function pill(dc as Graphics.Dc) as Void {
+        var x = sx(ROCKER[0]);
+        var y = sy(ROCKER[1]);
+        dc.fillRoundedRectangle(x, y, sx(ROCKER[0] + ROCKER[2]) - x,
+            sy(ROCKER[1] + ROCKER[3]) - y, rs(ROCKER[4]));
     }
 
     // two thick lines pointing (dx,dy)

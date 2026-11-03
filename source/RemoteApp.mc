@@ -5,7 +5,7 @@ import Toybox.WatchUi;
 // app shell. the remote screen lives in MainView.mc
 
 class RemoteApp extends Application.AppBase {
-    hidden var view as MainView or Null = null; // kept so settings changes reach the header
+    hidden var view as MainView or Null = null; // kept so settings changes reach the view
 
     function initialize() {
         AppBase.initialize();
@@ -17,12 +17,12 @@ class RemoteApp extends Application.AppBase {
         return [v, new MainDelegate(v)];
     }
 
-    // settings edited in the phone app while we're open: show the new room name.
-    // the ip needs nothing, the connector reads it on every send
+    // settings edited in the phone app while we're open: new room name and
+    // volume layout. the ip needs nothing, the connector reads it on every send
     function onSettingsChanged() as Void {
         var v = view;
         if (v != null) {
-            v.refreshHeader();
+            v.refreshSettings();
         }
     }
 }

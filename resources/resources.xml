@@ -3,11 +3,13 @@
         <string id="AppName">Roku Remote</string>
         <string id="RokuIpTitle">Roku IP (home network only, e.g. 192.168.1.42)</string>
         <string id="RoomNameTitle">Room name (keep it generic, e.g. Living room)</string>
+        <string id="VolumeButtonsTitle">Show volume buttons</string>
     </strings>
 
     <properties>
         <property id="rokuIp" type="string"></property>
         <property id="roomName" type="string"></property>
+        <property id="volumeButtons" type="boolean">false</property>
     </properties>
 
     <settings>
@@ -16,6 +18,9 @@
         </setting>
         <setting propertyKey="@Properties.roomName" title="@Strings.RoomNameTitle">
             <settingConfig type="alphaNumeric" maxLength="20" />
+        </setting>
+        <setting propertyKey="@Properties.volumeButtons" title="@Strings.VolumeButtonsTitle">
+            <settingConfig type="boolean" />
         </setting>
     </settings>
 </resources>
