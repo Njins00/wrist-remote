@@ -59,7 +59,7 @@ const CARD_W = 280;
 const CARD_R = 24;
 const CARD_EDGE = 2;
 const CARD_PAD = 16;
-const TITLE_PAD = 24;  // title room each side, inside the edge
+const TITLE_PAD = 32;  // message room each side, inside the edge
 const ICON_R = 22;
 // full-width buttons inside the padding, OK on top
 const POP_BTN_X = 38;
@@ -99,11 +99,66 @@ function fitBox(dc as Graphics.Dc, text as String, maxW as Number, maxH as Numbe
     return last;
 }
 
+// two lines, split at the space that makes the longer line shortest, both
+// fitting maxW. if no split fits, word by word, as many lines as it takes.
+// never cuts a word
+function wrapTwo(dc as Graphics.Dc, text as String, font as Graphics.FontDefinition, maxW as Number) as Array<String> {
+    var chars = text.toCharArray();
+    var best = [] as Array<String>;
+    var bestW = -1;
+    for (var i = 0; i < chars.size(); i++) {
+        if (chars[i] == ' ') {
+            var a = text.substring(0, i) as String;
+            var b = text.substring(i + 1, text.length()) as String;
+            var wa = dc.getTextWidthInPixels(a, font);
+            var wb = dc.getTextWidthInPixels(b, font);
+            var longer = wa > wb ? wa : wb;
+            if (longer <= maxW && (bestW < 0 || longer < bestW)) {
+                best = [a, b] as Array<String>;
+                bestW = longer;
+            }
+        }
+    }
+    if (bestW >= 0) {
+        return best;
+    }
+
+    var lines = [] as Array<String>;
+    var line = "";
+    var rest = text;
+    while (rest.length() > 0) {
+        // next word off the front
+        var sp = rest.find(" ");
+        var word = rest;
+        if (sp == null) {
+            rest = "";
+        } else {
+            word = rest.substring(0, sp) as String;
+            rest = rest.substring(sp + 1, rest.length()) as String;
+        }
+        var next = line.length() == 0 ? word : line + " " + word;
+        if (line.length() > 0 && dc.getTextWidthInPixels(next, font) > maxW) {
+            lines.add(line);
+            line = word;
+        } else {
+            line = next;
+        }
+    }
+    if (line.length() > 0) {
+        lines.add(line);
+    }
+    return lines;
+}
+
 class Popup {
     hidden var kind as Number;
     hidden var fix as Boolean; // false = OK only, card is one button shorter
     // button top in mockup px, set by draw. default is just a safe guess
     hidden var btnY as Number = 200;
+    // message font and lines, worked out on the first draw (needs a dc)
+    hidden var laid as Boolean = false;
+    hidden var tfont as Graphics.FontDefinition = Graphics.FONT_XTINY;
+    hidden var lines as Array<String> = [] as Array<String>;
 
     // f false = no How to fix. kinds with no steps are always OK only
     function initialize(k as Number, f as Boolean) {
@@ -137,16 +192,34 @@ class Popup {
         return POP_HIT_NONE;
     }
 
-    // icon, title, buttons top to bottom, card centred. scales from the dc
+    // message: one line in the biggest font that really fits the room
+    // (32 px each side inside the edge), else xtiny on two lines
+    hidden function layoutTitle(dc as Graphics.Dc, w as Number) as Void {
+        var title = POP_TITLES[kind];
+        var inner = hx(CARD_X + CARD_W - CARD_EDGE - TITLE_PAD, w) - hx(CARD_X + CARD_EDGE + TITLE_PAD, w);
+        laid = true;
+        for (var i = 0; i < FIT_FONTS.size(); i++) {
+            var f = FIT_FONTS[i] as Graphics.FontDefinition;
+            if (dc.getTextWidthInPixels(title, f) <= inner) {
+                tfont = f;
+                lines = [title] as Array<String>;
+                return;
+            }
+        }
+        tfont = Graphics.FONT_XTINY;
+        lines = wrapTwo(dc, title, tfont, inner);
+    }
+
+    // icon, message, buttons top to bottom, card centred. scales from the dc.
+    // card grows if the message wraps
     function draw(dc as Graphics.Dc) as Void {
         var w = dc.getWidth();
         var h = dc.getHeight();
-
-        // title must fit the card's real inner width, minus its side room
-        var title = POP_TITLES[kind];
-        var inner = hx(CARD_X + CARD_W - CARD_EDGE - TITLE_PAD, w) - hx(CARD_X + CARD_EDGE + TITLE_PAD, w);
-        var tfont = fitFont(dc, title, inner);
-        var th = dc.getFontHeight(tfont) * MOCK_H / h;
+        if (!laid) {
+            layoutTitle(dc, w);
+        }
+        var lineH = dc.getFontHeight(tfont);
+        var th = lines.size() * lineH * MOCK_H / h;
 
         // heights in mockup px
         var btns = fix ? POP_BTN_H * 2 + POP_BTN_GAP : POP_BTN_H;
@@ -180,9 +253,13 @@ class Popup {
         dc.fillRoundedRectangle(cx - bw / 2, cy - hr(12, w, h), bw, hr(14, w, h), bw / 2);
         dc.fillCircle(cx, cy + hr(8, w, h), hr(3, w, h));
 
+        // one line at a time, the block centred where the title goes
         dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, hy(titleCy, h), tfont, title,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        var ty = hy(titleCy, h) - lines.size() * lineH / 2 + lineH / 2;
+        for (var i = 0; i < lines.size(); i++) {
+            dc.drawText(cx, ty + i * lineH, tfont, lines[i],
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        }
 
         // labels fit width - 24 and height - 16, tiny at most. both use the
         // smaller font so they match
