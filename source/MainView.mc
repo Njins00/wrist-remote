@@ -49,7 +49,10 @@ class MainView extends WatchUi.View {
     var popup as Popup or Null = null;
     var idle as Timer.Timer;
     var flashTimer as Timer.Timer;
-    // screen size, set in onUpdate for the scale helpers
+    var header as Header;
+    hidden var played as Boolean = false;  // name marquee only plays on the first show
+    hidden var sending as Boolean = false; // a key is in flight, marquee paused
+    // screen size, set in onLayout/onUpdate for the scale helpers
     hidden var sw as Number = MOCK_W;
     hidden var sh as Number = MOCK_H;
 
@@ -58,16 +61,35 @@ class MainView extends WatchUi.View {
         roku = r;
         idle = new Timer.Timer();
         flashTimer = new Timer.Timer();
+        header = new Header();
+    }
+
+    // runs before the first onShow, so the header knows if the name scrolls
+    function onLayout(dc as Graphics.Dc) as Void {
+        sw = dc.getWidth();
+        sh = dc.getHeight();
+        header.measure(dc, self);
     }
 
     function onShow() as Void {
         poke();
+        if (!played) {
+            played = true;
+            header.play();
+        }
     }
 
     // idle keeps running so it still counts on the help page. dies with the app anyway
     function onHide() as Void {
         flashTimer.stop();
         flashCell = -1;
+        header.stop();
+    }
+
+    // settings changed: new room name, no replay
+    function refreshHeader() as Void {
+        header.refresh();
+        WatchUi.requestUpdate();
     }
 
     // any tap resets the idle clock
@@ -118,6 +140,18 @@ class MainView extends WatchUi.View {
             }
             return;
         }
+        // header: gear and heart do nothing yet (phase 6 / 7), name replays.
+        // never reaches the send code below
+        var top = header.hit(mx, my);
+        if (top != TOP_NONE) {
+            if (top == TOP_NAME) {
+                header.play();
+                if (sending) {
+                    header.pause();
+                }
+            }
+            return;
+        }
         var cell = cellAt(mx, my);
         if (cell < 0 || CELL_KEYS[cell] < 0) {
             return;
@@ -125,7 +159,17 @@ class MainView extends WatchUi.View {
         // new tap ends any flash still showing
         flashTimer.stop();
         flashCell = -1;
+        // marquee waits while a key is in flight, so at most 3 timers run.
+        // set before send(), onResult can fire inside it
+        var was = sending;
+        sending = true;
+        header.pause();
         var res = roku.send(CELL_KEYS[cell], method(:onResult));
+        if (res == SEND_BUSY) {
+            sending = was; // the earlier request is still going
+        } else if (res != SEND_STARTED) {
+            sending = false;
+        }
         if (res == SEND_BAD_IP) {
             showError(POP_BAD_IP);
         } else if (res == SEND_NO_PHONE) {
@@ -135,12 +179,17 @@ class MainView extends WatchUi.View {
             flashCell = cell;
             flashTimer.start(method(:endFlash), FLASH_MS, false);
         }
+        if (!sending) {
+            header.resume(); // no-op if a pop-up stopped it
+        }
         // busy: tap dropped, nothing changes
         WatchUi.requestUpdate();
     }
 
     function onResult(result as Number) as Void {
+        sending = false;
         if (result == RESULT_SENT) {
+            header.resume();
             return; // the flash was the feedback
         } else if (result == RESULT_NO_PHONE) {
             showError(POP_NO_PHONE);
@@ -160,6 +209,7 @@ class MainView extends WatchUi.View {
     function showError(kind as Number) as Void {
         flashTimer.stop();
         flashCell = -1;
+        header.stop();
         popup = new Popup(kind);
     }
 
@@ -172,7 +222,7 @@ class MainView extends WatchUi.View {
         WatchUi.requestUpdate();
     }
 
-    // redraws only on tap, flash end, error or pop-up close. header stays empty for now
+    // redraws on tap, flash end, error, pop-up close, and marquee ticks while a long name scrolls
     function onUpdate(dc as Graphics.Dc) as Void {
         sw = dc.getWidth();
         sh = dc.getHeight();
@@ -206,6 +256,8 @@ class MainView extends WatchUi.View {
             dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
             drawIcon(dc, CELL_KEYS[i], x + bw / 2, y + bh / 2);
         }
+
+        header.draw(dc, self, dim);
 
         if (p != null) {
             p.draw(dc, self);
