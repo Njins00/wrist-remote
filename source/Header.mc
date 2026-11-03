@@ -14,15 +14,11 @@ enum {
     TOP_NAME
 }
 
-// mockup px
-const TOP_GEAR_X = 20;
-const TOP_HEART_X = 264;
-const TOP_BTN_Y = 8;
-const TOP_BTN = 36;
-const TOP_BTN_R = 12;
-const TOP_NAME_X = 64;    // name window 64..256, 8 px clear of the buttons
-const TOP_NAME_W = 192;
-const TOP_NAME_Y = 26;
+// mockup px per shape: gear x, heart x, button y, button size, button radius,
+// name x, name w (dot + gap + text, 8 px clear of the buttons), name y,
+// middle x, clip bottom
+const TOP_SQ = [20, 264, 8, 36, 12, 64, 192, 26, 160, 52];
+const TOP_RND = [97, 285, 40, 34, 12, 139, 138, 57, 208, 80];
 const TOP_DOT = 8;
 const TOP_DOT_GAP = 6;
 const TOP_LOOP_GAP = 40;  // space before the name comes round again
@@ -34,6 +30,8 @@ const COL_ICON = 0xA7B0B5;
 
 class Header {
     hidden var name as String;
+    hidden var round as Boolean;
+    hidden var lay as Array<Number>; // TOP_SQ or TOP_RND
     hidden var dirty as Boolean = true; // re-measure on next draw
     hidden var scrolls as Boolean = false; // name too wide for the window
     // screen px, worked out in measure()
@@ -48,7 +46,9 @@ class Header {
     hidden var timer as Timer.Timer;
 
     // normal case, it's narrower than all caps
-    function initialize() {
+    function initialize(r as Boolean) {
+        round = r;
+        lay = r ? TOP_RND : TOP_SQ;
         name = roomName();
         timer = new Timer.Timer();
     }
@@ -62,11 +62,12 @@ class Header {
 
     function measure(dc as Graphics.Dc, v as MainView) as Void {
         textW = dc.getTextWidthInPixels(name, Graphics.FONT_XTINY);
-        var room = v.sx(TOP_NAME_X + TOP_NAME_W) - v.sx(TOP_NAME_X + TOP_DOT + TOP_DOT_GAP);
+        var room = v.sx(lay[5] + lay[6]) - v.sx(lay[5] + TOP_DOT + TOP_DOT_GAP);
         scrolls = textW > room;
-        stepPx = v.sx(TOP_STEP);
+        // minus sx(0) so the round centring offset doesn't count
+        stepPx = v.sx(TOP_STEP) - v.sx(0);
         if (stepPx < 1) { stepPx = 1; }
-        loopPx = textW + v.sx(TOP_LOOP_GAP);
+        loopPx = textW + v.sx(TOP_LOOP_GAP) - v.sx(0);
         dirty = false;
     }
 
@@ -128,6 +129,17 @@ class Header {
 
     // mx,my in mockup px. generous areas, all above the Up arm's tap area
     function hit(mx as Number, my as Number) as Number {
+        if (round) {
+            // whole band above y 80, split in the middle of the 8 px gaps.
+            // the screen edge is the outer limit
+            if (my >= 80) {
+                return TOP_NONE;
+            }
+            if (mx < 135) {
+                return TOP_GEAR;
+            }
+            return mx >= 281 ? TOP_HEART : TOP_NAME;
+        }
         if (my < 56 && mx < 80) {
             return TOP_GEAR;
         }
@@ -151,14 +163,14 @@ class Header {
         drawHeart(dc, v, btn, ink);
 
         // dot + name
-        var cy = v.sy(TOP_NAME_Y);
+        var cy = v.sy(lay[7]);
         var dot = v.rs(TOP_DOT);
         var gap = v.sx(TOP_DOT_GAP);
         var left;
         if (scrolls) {
-            left = v.sx(TOP_NAME_X); // dot pinned, text scrolls in the rest
+            left = v.sx(lay[5]); // dot pinned, text scrolls in the rest
         } else {
-            left = v.sx(160) - (dot + gap + textW) / 2;
+            left = v.sx(lay[8]) - (dot + gap + textW) / 2;
         }
         dc.setColor(dim ? COL_ACCENT_DIM : COL_ACCENT, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(left + dot / 2, cy, dot / 2);
@@ -167,8 +179,8 @@ class Header {
         dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
         var just = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
         if (scrolls) {
-            var right = v.sx(TOP_NAME_X + TOP_NAME_W);
-            dc.setClip(tx, 0, right - tx, v.sy(52));
+            var right = v.sx(lay[5] + lay[6]);
+            dc.setClip(tx, 0, right - tx, v.sy(lay[9]));
             dc.drawText(tx - offset, cy, Graphics.FONT_XTINY, name, just);
             if (running) {
                 // second copy so the loop has no hole
@@ -182,17 +194,17 @@ class Header {
 
     hidden function button(dc as Graphics.Dc, v as MainView, mx as Number, btn as Number) as Array<Number> {
         var x = v.sx(mx);
-        var y = v.sy(TOP_BTN_Y);
-        var w = v.sx(mx + TOP_BTN) - x;
-        var h = v.sy(TOP_BTN_Y + TOP_BTN) - y;
+        var y = v.sy(lay[2]);
+        var w = v.sx(mx + lay[3]) - x;
+        var h = v.sy(lay[2] + lay[3]) - y;
         dc.setColor(btn, Graphics.COLOR_TRANSPARENT);
-        dc.fillRoundedRectangle(x, y, w, h, v.rs(TOP_BTN_R));
+        dc.fillRoundedRectangle(x, y, w, h, v.rs(lay[4]));
         return [x + w / 2, y + h / 2];
     }
 
     // 4 thick bars make 8 teeth, a disc on top, a hole in the middle
     hidden function drawGear(dc as Graphics.Dc, v as MainView, btn as Number, ink as Number) as Void {
-        var c = button(dc, v, TOP_GEAR_X, btn);
+        var c = button(dc, v, lay[0], btn);
         var cx = c[0];
         var cy = c[1];
         var a = v.rs(11);
@@ -211,7 +223,7 @@ class Header {
 
     // two circles + a triangle
     hidden function drawHeart(dc as Graphics.Dc, v as MainView, btn as Number, ink as Number) as Void {
-        var c = button(dc, v, TOP_HEART_X, btn);
+        var c = button(dc, v, lay[1], btn);
         var cx = c[0];
         var cy = c[1];
         var r = v.rs(5);

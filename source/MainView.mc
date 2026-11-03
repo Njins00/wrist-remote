@@ -5,7 +5,8 @@ import Toybox.System;
 import Toybox.Timer;
 import Toybox.WatchUi;
 
-// main remote screen. numbers are mockup px (320x360), scaled to the real screen
+// main remote screen. numbers are mockup px (320x360), scaled to the real screen.
+// round screens use their own tables from a 416x416 mockup instead
 
 const MOCK_W = 320;
 const MOCK_H = 360;
@@ -57,6 +58,34 @@ const VOL_RECTS = [
 // the whole rocker pill, drawn under its three zones
 const ROCKER = [238, 70, 60, 202, 30];
 
+// round: 416 circle scaled by the short side and centred. same cell order
+const RND_MOCK = 416;
+const RND_CELL_RECTS = [
+    [169, 151, 78, 78, 39],
+    [173, 84, 70, 62, 20],
+    [173, 234, 70, 62, 20],
+    [102, 155, 62, 70, 20],
+    [252, 155, 62, 70, 20],
+    [102, 306, 62, 52, 18],
+    [177, 306, 62, 52, 18],
+    [252, 306, 62, 52, 18]
+];
+// volume on: d-pad box 196 at x 77, 12 px gap, rocker at x 285
+const RND_VOL_RECTS = [
+    [139, 146, 72, 72, 36],
+    [143, 84, 64, 57, 18],
+    [143, 223, 64, 57, 18],
+    [77, 150, 57, 64, 18],
+    [216, 150, 57, 64, 18],
+    [102, 290, 62, 52, 18],
+    [177, 290, 62, 52, 18],
+    [252, 290, 62, 52, 18],
+    [285, 84, 54, 65, 27],  // +
+    [285, 149, 54, 66, 27], // mute
+    [285, 215, 54, 65, 27]  // -
+];
+const RND_ROCKER = [285, 84, 54, 196, 27];
+
 class MainView extends WatchUi.View {
     var roku as RokuConnector;
     var flashCell as Number = -1; // cell drawn pressed, -1 = none
@@ -64,6 +93,8 @@ class MainView extends WatchUi.View {
     hidden var vol as Boolean = false;
     hidden var keys as Array<Number> = CELL_KEYS;
     hidden var rects as Array<Array<Number>> = CELL_RECTS;
+    hidden var rocker as Array<Number> = ROCKER;
+    hidden var round as Boolean = false;
     var popup as Popup or Null = null;
     var flashTimer as Timer.Timer;
     var header as Header;
@@ -72,12 +103,17 @@ class MainView extends WatchUi.View {
     // screen size, set in onLayout/onUpdate for the scale helpers
     hidden var sw as Number = MOCK_W;
     hidden var sh as Number = MOCK_H;
+    // round only: short side and the offsets that centre the circle
+    hidden var sm as Number = RND_MOCK;
+    hidden var ox as Number = 0;
+    hidden var oy as Number = 0;
 
     function initialize(r as RokuConnector) {
         View.initialize();
         roku = r;
         flashTimer = new Timer.Timer();
-        header = new Header();
+        round = System.getDeviceSettings().screenShape == System.SCREEN_SHAPE_ROUND;
+        header = new Header(round);
         loadMode();
     }
 
@@ -89,13 +125,18 @@ class MainView extends WatchUi.View {
             vol = v;
         }
         keys = vol ? VOL_KEYS : CELL_KEYS;
-        rects = vol ? VOL_RECTS : CELL_RECTS;
+        if (round) {
+            rects = vol ? RND_VOL_RECTS : RND_CELL_RECTS;
+            rocker = RND_ROCKER;
+        } else {
+            rects = vol ? VOL_RECTS : CELL_RECTS;
+            rocker = ROCKER;
+        }
     }
 
     // runs before the first onShow, so the header knows if the name scrolls
     function onLayout(dc as Graphics.Dc) as Void {
-        sw = dc.getWidth();
-        sh = dc.getHeight();
+        setSize(dc);
         header.measure(dc, self);
     }
 
@@ -157,7 +198,7 @@ class MainView extends WatchUi.View {
         poke();
         var mx = x * MOCK_W / System.getDeviceSettings().screenWidth;
         var my = y * MOCK_H / System.getDeviceSettings().screenHeight;
-        // pop-up open: only its two buttons do anything, no keys get sent
+        // pop-up open (still uses the 320x360 numbers on round too): only its two buttons do anything, no keys get sent
         var p = popup;
         if (p != null) {
             var hit = p.buttonAt(mx, my);
@@ -171,6 +212,11 @@ class MainView extends WatchUi.View {
                 WatchUi.pushView(help, new HelpDelegate(help), WatchUi.SLIDE_IMMEDIATE);
             }
             return;
+        }
+        // round: back to 416 px for the header and cells
+        if (round) {
+            mx = (x - ox) * RND_MOCK / sm;
+            my = (y - oy) * RND_MOCK / sm;
         }
         // header: gear and heart do nothing yet (phase 6 / 7), name replays.
         // never reaches the send code below
@@ -256,8 +302,7 @@ class MainView extends WatchUi.View {
 
     // redraws on tap, flash end, error, pop-up close, and marquee ticks while a long name scrolls
     function onUpdate(dc as Graphics.Dc) as Void {
-        sw = dc.getWidth();
-        sh = dc.getHeight();
+        setSize(dc);
         dc.setColor(COL_BG, COL_BG);
         dc.clear();
         var p = popup;
@@ -317,17 +362,37 @@ class MainView extends WatchUi.View {
         }
     }
 
+    hidden function setSize(dc as Graphics.Dc) as Void {
+        sw = dc.getWidth();
+        sh = dc.getHeight();
+        if (round) {
+            sm = sw < sh ? sw : sh;
+            ox = (sw - sm) / 2;
+            oy = (sh - sm) / 2;
+        }
+    }
+
     // mockup px -> screen px
     function sx(v as Number) as Number {
+        if (round) {
+            return ox + v * sm / RND_MOCK;
+        }
         return v * sw / MOCK_W;
     }
 
     function sy(v as Number) as Number {
+        if (round) {
+            return oy + v * sm / RND_MOCK;
+        }
         return v * sh / MOCK_H;
     }
 
     // radii and pens use the smaller scale so circles stay round
     function rs(v as Number) as Number {
+        if (round) {
+            var q = v * sm / RND_MOCK;
+            return q < 1 ? 1 : q;
+        }
         var a = sx(v);
         var b = sy(v);
         var r = a < b ? a : b;
@@ -395,10 +460,10 @@ class MainView extends WatchUi.View {
 
     // the whole rocker pill in the current colour
     function pill(dc as Graphics.Dc) as Void {
-        var x = sx(ROCKER[0]);
-        var y = sy(ROCKER[1]);
-        dc.fillRoundedRectangle(x, y, sx(ROCKER[0] + ROCKER[2]) - x,
-            sy(ROCKER[1] + ROCKER[3]) - y, rs(ROCKER[4]));
+        var x = sx(rocker[0]);
+        var y = sy(rocker[1]);
+        dc.fillRoundedRectangle(x, y, sx(rocker[0] + rocker[2]) - x,
+            sy(rocker[1] + rocker[3]) - y, rs(rocker[4]));
     }
 }
 
