@@ -1,5 +1,6 @@
 import Toybox.Graphics;
 import Toybox.Lang;
+import Toybox.System;
 
 // error card drawn over whatever screen is up. that screen dims itself and
 // passes taps in. OK closes it, How to fix opens the help page
@@ -66,6 +67,11 @@ const POP_BTN_X = 38;
 const POP_BTN_W = 244;
 const POP_BTN_H = 42;
 const POP_BTN_GAP = 8;
+// round, 416 px: card 58-358, buttons the same 18 px in. rest as above
+const RND_CARD_X = 58;
+const RND_CARD_W = 300;
+const RND_BTN_X = 76;
+const RND_BTN_W = 264;
 
 const COL_CARD_EDGE = 0x3A3F44;
 const COL_WARN_BG = 0x2B2113;
@@ -159,20 +165,65 @@ class Popup {
     hidden var laid as Boolean = false;
     hidden var tfont as Graphics.FontDefinition = Graphics.FONT_XTINY;
     hidden var lines as Array<String> = [] as Array<String>;
+    // round: 416 px numbers, card and buttons from the RND_ consts
+    hidden var round as Boolean;
+    hidden var cardX as Number = CARD_X;
+    hidden var cardW as Number = CARD_W;
+    hidden var btnX as Number = POP_BTN_X;
+    hidden var btnW as Number = POP_BTN_W;
+    // screen size, for turning round taps back into screen px
+    hidden var tapW as Number;
+    hidden var tapH as Number;
 
     // f false = no How to fix. kinds with no steps are always OK only
     function initialize(k as Number, f as Boolean) {
         kind = k;
         fix = f && (POP_STEPS[k] as Array).size() > 0;
+        round = isRound();
+        if (round) {
+            cardX = RND_CARD_X;
+            cardW = RND_CARD_W;
+            btnX = RND_BTN_X;
+            btnW = RND_BTN_W;
+        }
+        var ds = System.getDeviceSettings();
+        tapW = ds.screenWidth;
+        tapH = ds.screenHeight;
     }
 
     function getKind() as Number {
         return kind;
     }
 
-    // mx,my in mockup px. a bit of slack like the remote buttons
+    // mockup px -> screen px, 320x360 on square, the 416 circle on round
+    hidden function px(v as Number, w as Number, h as Number) as Number {
+        return round ? rx(v, w, h) : hx(v, w);
+    }
+
+    hidden function py(v as Number, w as Number, h as Number) as Number {
+        return round ? ry(v, w, h) : hy(v, h);
+    }
+
+    hidden function pr(v as Number, w as Number, h as Number) as Number {
+        if (round) {
+            var r = rp(v, w, h);
+            return r < 1 ? 1 : r;
+        }
+        return hr(v, w, h);
+    }
+
+    // mx,my in 320x360 mockup px. a bit of slack like the remote buttons.
+    // round: back to screen px (middle of the pixel), then 416 px.
+    // TODO 6.3: callers pass screen px instead
     function buttonAt(mx as Number, my as Number) as Number {
-        if (mx < POP_BTN_X - SLACK || mx >= POP_BTN_X + POP_BTN_W + SLACK) {
+        if (round) {
+            var x = (mx * 2 + 1) * tapW / (MOCK_W * 2);
+            var y = (my * 2 + 1) * tapH / (MOCK_H * 2);
+            var m = tapW < tapH ? tapW : tapH;
+            mx = (x - (tapW - m) / 2) * RND_MOCK / m;
+            my = (y - (tapH - m) / 2) * RND_MOCK / m;
+        }
+        if (mx < btnX - SLACK || mx >= btnX + btnW + SLACK) {
             return POP_HIT_NONE;
         }
         if (!fix) {
@@ -194,9 +245,9 @@ class Popup {
 
     // message: one line in the biggest font that really fits the room
     // (32 px each side inside the edge), else xtiny on two lines
-    hidden function layoutTitle(dc as Graphics.Dc, w as Number) as Void {
+    hidden function layoutTitle(dc as Graphics.Dc, w as Number, h as Number) as Void {
         var title = POP_TITLES[kind];
-        var inner = hx(CARD_X + CARD_W - CARD_EDGE - TITLE_PAD, w) - hx(CARD_X + CARD_EDGE + TITLE_PAD, w);
+        var inner = px(cardX + cardW - CARD_EDGE - TITLE_PAD, w, h) - px(cardX + CARD_EDGE + TITLE_PAD, w, h);
         laid = true;
         for (var i = 0; i < FIT_FONTS.size(); i++) {
             var f = FIT_FONTS[i] as Graphics.FontDefinition;
@@ -215,16 +266,25 @@ class Popup {
     function draw(dc as Graphics.Dc) as Void {
         var w = dc.getWidth();
         var h = dc.getHeight();
+        tapW = w;
+        tapH = h;
         if (!laid) {
-            layoutTitle(dc, w);
+            layoutTitle(dc, w, h);
         }
         var lineH = dc.getFontHeight(tfont);
-        var th = lines.size() * lineH * MOCK_H / h;
+        // round: 416 px per short side
+        var mockH = MOCK_H;
+        var scrH = h;
+        if (round) {
+            mockH = RND_MOCK;
+            scrH = w < h ? w : h;
+        }
+        var th = lines.size() * lineH * mockH / scrH;
 
         // heights in mockup px
         var btns = fix ? POP_BTN_H * 2 + POP_BTN_GAP : POP_BTN_H;
         var ch = CARD_PAD + ICON_R * 2 + 12 + th + 16 + btns + CARD_PAD;
-        var top = (MOCK_H - ch) / 2;
+        var top = (mockH - ch) / 2;
         if (top < 8) {
             top = 8;
         }
@@ -233,29 +293,29 @@ class Popup {
         btnY = titleCy + th / 2 + 16;
 
         // card: edge colour full size, then the fill 2 px in
-        var x = hx(CARD_X, w);
-        var y = hy(top, h);
-        var cw = hx(CARD_X + CARD_W, w) - x;
-        var sh = hy(top + ch, h) - y;
-        var e = hr(CARD_EDGE, w, h);
+        var x = px(cardX, w, h);
+        var y = py(top, w, h);
+        var cw = px(cardX + cardW, w, h) - x;
+        var sh = py(top + ch, w, h) - y;
+        var e = pr(CARD_EDGE, w, h);
         dc.setColor(COL_CARD_EDGE, Graphics.COLOR_TRANSPARENT);
-        dc.fillRoundedRectangle(x, y, cw, sh, hr(CARD_R, w, h));
+        dc.fillRoundedRectangle(x, y, cw, sh, pr(CARD_R, w, h));
         dc.setColor(COL_BTN, Graphics.COLOR_TRANSPARENT);
-        dc.fillRoundedRectangle(x + e, y + e, cw - e * 2, sh - e * 2, hr(CARD_R - CARD_EDGE, w, h));
+        dc.fillRoundedRectangle(x + e, y + e, cw - e * 2, sh - e * 2, pr(CARD_R - CARD_EDGE, w, h));
 
         // amber circle with a drawn "!" so we don't need the glyph
-        var cx = hx(160, w);
-        var cy = hy(iconCy, h);
+        var cx = px(cardX + cardW / 2, w, h);
+        var cy = py(iconCy, w, h);
         dc.setColor(COL_WARN_BG, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx, cy, hr(ICON_R, w, h));
+        dc.fillCircle(cx, cy, pr(ICON_R, w, h));
         dc.setColor(COL_WARN, Graphics.COLOR_TRANSPARENT);
-        var bw = hr(5, w, h);
-        dc.fillRoundedRectangle(cx - bw / 2, cy - hr(12, w, h), bw, hr(14, w, h), bw / 2);
-        dc.fillCircle(cx, cy + hr(8, w, h), hr(3, w, h));
+        var bw = pr(5, w, h);
+        dc.fillRoundedRectangle(cx - bw / 2, cy - pr(12, w, h), bw, pr(14, w, h), bw / 2);
+        dc.fillCircle(cx, cy + pr(8, w, h), pr(3, w, h));
 
         // one line at a time, the block centred where the title goes
         dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
-        var ty = hy(titleCy, h) - lines.size() * lineH / 2 + lineH / 2;
+        var ty = py(titleCy, w, h) - lines.size() * lineH / 2 + lineH / 2;
         for (var i = 0; i < lines.size(); i++) {
             dc.drawText(cx, ty + i * lineH, tfont, lines[i],
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
@@ -263,8 +323,8 @@ class Popup {
 
         // labels fit width - 24 and height - 16, tiny at most. both use the
         // smaller font so they match
-        var lw = hx(POP_BTN_X + POP_BTN_W, w) - hx(POP_BTN_X, w) - hr(24, w, h);
-        var lh = hy(btnY + POP_BTN_H, h) - hy(btnY, h) - hr(16, w, h);
+        var lw = px(btnX + btnW, w, h) - px(btnX, w, h) - pr(24, w, h);
+        var lh = py(btnY + POP_BTN_H, w, h) - py(btnY, w, h) - pr(16, w, h);
         var f = fitBox(dc, "OK", lw, lh, 1);
         if (fix) {
             var f2 = fitBox(dc, "How to fix", lw, lh, 1);
@@ -281,13 +341,13 @@ class Popup {
 
     hidden function drawButton(dc as Graphics.Dc, sw as Number, sh as Number, my as Number, label as String,
             fill as Number, edged as Boolean, font as Graphics.FontDefinition) as Void {
-        var x = hx(POP_BTN_X, sw);
-        var y = hy(my, sh);
-        var w = hx(POP_BTN_X + POP_BTN_W, sw) - x;
-        var h = hy(my + POP_BTN_H, sh) - y;
+        var x = px(btnX, sw, sh);
+        var y = py(my, sw, sh);
+        var w = px(btnX + btnW, sw, sh) - x;
+        var h = py(my + POP_BTN_H, sw, sh) - y;
         if (edged) {
             // dark on dark, the edge makes it read as a button
-            var e = hr(CARD_EDGE, sw, sh);
+            var e = pr(CARD_EDGE, sw, sh);
             dc.setColor(COL_CARD_EDGE, Graphics.COLOR_TRANSPARENT);
             dc.fillRoundedRectangle(x, y, w, h, h / 2);
             dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
