@@ -221,10 +221,10 @@ class OnboardView extends WatchUi.View {
         var h = ds.screenHeight;
         var mx = x * MOCK_W / w;
         var my = y * MOCK_H / h;
-        // pop-up open: only OK does anything
+        // pop-up open: only OK does anything. it maps the screen px itself
         var p = popup;
         if (p != null) {
-            if (p.buttonAt(mx, my) == POP_HIT_OK) {
+            if (p.buttonAt(x, y) == POP_HIT_OK) {
                 popup = null;
                 WatchUi.requestUpdate();
             }

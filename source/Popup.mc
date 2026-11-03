@@ -171,7 +171,7 @@ class Popup {
     hidden var cardW as Number = CARD_W;
     hidden var btnX as Number = POP_BTN_X;
     hidden var btnW as Number = POP_BTN_W;
-    // screen size, for turning round taps back into screen px
+    // screen size, for mapping taps
     hidden var tapW as Number;
     hidden var tapH as Number;
 
@@ -212,13 +212,12 @@ class Popup {
         return hr(v, w, h);
     }
 
-    // mx,my in 320x360 mockup px. a bit of slack like the remote buttons.
-    // round: back to screen px (middle of the pixel), then 416 px.
-    // TODO 6.3: callers pass screen px instead
-    function buttonAt(mx as Number, my as Number) as Number {
+    // x,y in screen px. mapped the same way the card is drawn: 320x360 on
+    // square, the 416 circle on round. a bit of slack like the remote buttons
+    function buttonAt(x as Number, y as Number) as Number {
+        var mx = x * MOCK_W / tapW;
+        var my = y * MOCK_H / tapH;
         if (round) {
-            var x = (mx * 2 + 1) * tapW / (MOCK_W * 2);
-            var y = (my * 2 + 1) * tapH / (MOCK_H * 2);
             var m = tapW < tapH ? tapW : tapH;
             mx = (x - (tapW - m) / 2) * RND_MOCK / m;
             my = (y - (tapH - m) / 2) * RND_MOCK / m;

@@ -198,10 +198,10 @@ class MainView extends WatchUi.View {
         poke();
         var mx = x * MOCK_W / System.getDeviceSettings().screenWidth;
         var my = y * MOCK_H / System.getDeviceSettings().screenHeight;
-        // pop-up open (still uses the 320x360 numbers on round too): only its two buttons do anything, no keys get sent
+        // pop-up open (maps the screen px itself): only its two buttons do anything, no keys get sent
         var p = popup;
         if (p != null) {
-            var hit = p.buttonAt(mx, my);
+            var hit = p.buttonAt(x, y);
             if (hit == POP_HIT_OK) {
                 closePopup();
             } else if (hit == POP_HIT_FIX) {
