@@ -49,7 +49,7 @@ const KEY_PATHS = [
     "/keypress/Back",
     "/keypress/Home",
     "/keypress/Play",
-    "/keypress/VolumeUp", // tv only, sticks ignore volume
+    "/keypress/VolumeUp", // roku tvs. sticks only pass it on over HDMI-CEC and failed on two tvs, so onboarding turns these off for sticks
     "/keypress/VolumeDown",
     "/keypress/VolumeMute"
 ];

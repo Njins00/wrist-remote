@@ -20,8 +20,8 @@ const TOP_HEART_X = 264;
 const TOP_BTN_Y = 8;
 const TOP_BTN = 36;
 const TOP_BTN_R = 12;
-const TOP_NAME_X = 75;    // name window 75..245
-const TOP_NAME_W = 170;
+const TOP_NAME_X = 64;    // name window 64..256, 8 px clear of the buttons
+const TOP_NAME_W = 192;
 const TOP_NAME_Y = 26;
 const TOP_DOT = 8;
 const TOP_DOT_GAP = 6;
@@ -47,15 +47,16 @@ class Header {
     hidden var paused as Boolean = false;
     hidden var timer as Timer.Timer;
 
+    // normal case, it's narrower than all caps
     function initialize() {
-        name = roomName().toUpper();
+        name = roomName();
         timer = new Timer.Timer();
     }
 
     // settings changed: new name, measure again, no replay
     function refresh() as Void {
         stop();
-        name = roomName().toUpper();
+        name = roomName();
         dirty = true;
     }
 
