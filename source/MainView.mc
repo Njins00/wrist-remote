@@ -10,36 +10,45 @@ const IDLE_MS = 300000; // 5 min with no taps, then back to the watch face
 
 const MOCK_W = 320;
 const MOCK_H = 360;
-const STATUS_Y = 27; // middle of the empty header (0-54), 4.4 fills it
-const SLACK = 4;     // extra px around each button for fat fingers
+const SLACK = 4; // extra px around each button for fat fingers
+
+const FLASH_MS = 150; // pressed look after a send
 
 const COL_BG = 0x000000;
 const COL_BTN = 0x1C1F22;
 const COL_TEXT = 0xF2F4F5;
 const COL_ACCENT = 0x6C2BD9;
-const COL_TEXT2 = 0xA7B0B5;
+const COL_BTN_PRESSED = 0x3A3F44;
+const COL_ACCENT_PRESSED = 0x8A4DFF;
+// remote behind the pop-up. solid colours, no transparency
+const COL_BTN_DIM = 0x0E0F11;
+const COL_TEXT_DIM = 0x5A5C5D;
+const COL_ACCENT_DIM = 0x2F135F;
+
+const OK_CX = 160;
+const OK_CY = 171;
+const OK_R = 42;
 
 // OK first so it wins where its slack touches an arm
 const CELL_KEYS = [KEY_SELECT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_BACK, KEY_HOME, KEY_PLAY];
-const CELL_LABELS = ["OK", "Up", "Down", "Left", "Right", "Back", "Home", "Play"];
-// x, y, w, h, corner radius. OK is its circle's box (centre 160,170, r 39)
+// x, y, w, h, corner radius. OK is its circle's box
 const CELL_RECTS = [
-    [121, 131, 78, 78, 39],
-    [125, 64, 70, 62, 20],
-    [125, 214, 70, 62, 20],
-    [54, 135, 62, 70, 20],
-    [204, 135, 62, 70, 20],
-    [22, 294, 85, 50, 16],
-    [117, 294, 86, 50, 16],
-    [213, 294, 85, 50, 16]
+    [118, 129, 84, 84, 42],
+    [123, 58, 74, 66, 21],
+    [123, 218, 74, 66, 21],
+    [47, 134, 66, 74, 21],
+    [207, 134, 66, 74, 21],
+    [22, 292, 85, 54, 16],
+    [117, 292, 86, 54, 16],
+    [213, 292, 85, 54, 16]
 ];
 
 class MainView extends WatchUi.View {
     var roku as RokuConnector;
-    var status as String = "Tap a key";
-    var lastLabel as String = "";
-    var sentAt as Number = 0;
+    var flashCell as Number = -1; // cell drawn pressed, -1 = none
+    var popup as Popup or Null = null;
     var idle as Timer.Timer;
+    var flashTimer as Timer.Timer;
     // screen size, set in onUpdate for the scale helpers
     hidden var sw as Number = MOCK_W;
     hidden var sh as Number = MOCK_H;
@@ -48,14 +57,17 @@ class MainView extends WatchUi.View {
         View.initialize();
         roku = r;
         idle = new Timer.Timer();
+        flashTimer = new Timer.Timer();
     }
 
     function onShow() as Void {
         poke();
     }
 
+    // idle keeps running so it still counts on the help page. dies with the app anyway
     function onHide() as Void {
-        idle.stop();
+        flashTimer.stop();
+        flashCell = -1;
     }
 
     // any tap resets the idle clock
@@ -68,14 +80,12 @@ class MainView extends WatchUi.View {
         System.exit();
     }
 
-    // which cell is under x,y. -1 if none. works in mockup px
-    function cellAt(x as Number, y as Number) as Number {
-        var mx = x * MOCK_W / System.getDeviceSettings().screenWidth;
-        var my = y * MOCK_H / System.getDeviceSettings().screenHeight;
+    // which cell is under mx,my (mockup px). -1 if none
+    function cellAt(mx as Number, my as Number) as Number {
         // OK circle
-        var dx = mx - 160;
-        var dy = my - 170;
-        var r = 39 + SLACK;
+        var dx = mx - OK_CX;
+        var dy = my - OK_CY;
+        var r = OK_R + SLACK;
         if (dx * dx + dy * dy <= r * r) {
             return 0;
         }
@@ -91,64 +101,97 @@ class MainView extends WatchUi.View {
 
     function tap(x as Number, y as Number) as Void {
         poke();
-        var cell = cellAt(x, y);
+        var mx = x * MOCK_W / System.getDeviceSettings().screenWidth;
+        var my = y * MOCK_H / System.getDeviceSettings().screenHeight;
+        // pop-up open: only its two buttons do anything, no keys get sent
+        var p = popup;
+        if (p != null) {
+            var hit = p.buttonAt(mx, my);
+            if (hit == POP_HIT_OK) {
+                closePopup();
+            } else if (hit == POP_HIT_FIX) {
+                // close first so Done/back lands on a clean remote
+                var kind = p.getKind();
+                closePopup();
+                var help = new HelpView(kind);
+                WatchUi.pushView(help, new HelpDelegate(help, self), WatchUi.SLIDE_IMMEDIATE);
+            }
+            return;
+        }
+        var cell = cellAt(mx, my);
         if (cell < 0 || CELL_KEYS[cell] < 0) {
             return;
         }
-        var label = CELL_LABELS[cell];
-        // set "Sending" first, onResult can fire inside send() and must win
-        var prevStatus = status;
-        var prevLabel = lastLabel;
-        var prevAt = sentAt;
-        lastLabel = label;
-        sentAt = System.getTimer();
-        status = "Sending · " + label;
+        // new tap ends any flash still showing
+        flashTimer.stop();
+        flashCell = -1;
         var res = roku.send(CELL_KEYS[cell], method(:onResult));
         if (res == SEND_BAD_IP) {
-            status = "Set a home IP in settings";
+            showError(POP_BAD_IP);
         } else if (res == SEND_NO_PHONE) {
-            status = "Phone not connected";
-        } else if (res != SEND_STARTED) {
-            // busy, tap dropped. put things back for the request still in flight
-            status = prevStatus;
-            lastLabel = prevLabel;
-            sentAt = prevAt;
+            showError(POP_NO_PHONE);
+        } else if (res == SEND_STARTED && popup == null) {
+            // only real sends flash. popup check: onResult can fire inside send()
+            flashCell = cell;
+            flashTimer.start(method(:endFlash), FLASH_MS, false);
         }
+        // busy: tap dropped, nothing changes
         WatchUi.requestUpdate();
     }
 
     function onResult(result as Number) as Void {
-        var ms = System.getTimer() - sentAt;
         if (result == RESULT_SENT) {
-            status = "Sent · " + lastLabel + "  " + ms + " ms";
+            return; // the flash was the feedback
         } else if (result == RESULT_NO_PHONE) {
-            status = "Phone not connected";
-        } else if (result == RESULT_TIMED_OUT) {
-            status = "Can't reach Roku";
+            showError(POP_NO_PHONE);
         } else if (result == RESULT_HTTP_BLOCKED) {
-            status = "Phone blocks HTTP";
+            showError(POP_HTTP);
         } else {
-            status = "Failed";
+            showError(POP_UNREACHABLE); // timed out or failed
         }
         WatchUi.requestUpdate();
     }
 
-    // only redraws on tap or result, nothing animates
+    function endFlash() as Void {
+        flashCell = -1;
+        WatchUi.requestUpdate();
+    }
+
+    function showError(kind as Number) as Void {
+        flashTimer.stop();
+        flashCell = -1;
+        popup = new Popup(kind);
+    }
+
+    function popupOpen() as Boolean {
+        return popup != null;
+    }
+
+    function closePopup() as Void {
+        popup = null;
+        WatchUi.requestUpdate();
+    }
+
+    // redraws only on tap, flash end, error or pop-up close. header stays empty for now
     function onUpdate(dc as Graphics.Dc) as Void {
         sw = dc.getWidth();
         sh = dc.getHeight();
         dc.setColor(COL_BG, COL_BG);
         dc.clear();
-
-        dc.setColor(COL_TEXT2, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(sw / 2, sy(STATUS_Y), Graphics.FONT_XTINY, status,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        var p = popup;
+        var dim = p != null;
+        var btn = dim ? COL_BTN_DIM : COL_BTN;
+        var ink = dim ? COL_TEXT_DIM : COL_TEXT;
+        var accent = dim ? COL_ACCENT_DIM : COL_ACCENT;
+        if (flashCell == 0) {
+            accent = COL_ACCENT_PRESSED;
+        }
 
         // OK: accent circle
-        dc.setColor(COL_ACCENT, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(sx(160), sy(170), rs(39));
-        dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(sx(160), sy(170), Graphics.FONT_SMALL, "OK",
+        dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(sx(OK_CX), sy(OK_CY), rs(OK_R));
+        dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(sx(OK_CX), sy(OK_CY), Graphics.FONT_SMALL, "OK",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         // arms + bottom row
@@ -158,10 +201,14 @@ class MainView extends WatchUi.View {
             var y = sy(c[1]);
             var bw = sx(c[0] + c[2]) - x;
             var bh = sy(c[1] + c[3]) - y;
-            dc.setColor(COL_BTN, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(i == flashCell ? COL_BTN_PRESSED : btn, Graphics.COLOR_TRANSPARENT);
             dc.fillRoundedRectangle(x, y, bw, bh, rs(c[4]));
-            dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
             drawIcon(dc, CELL_KEYS[i], x + bw / 2, y + bh / 2);
+        }
+
+        if (p != null) {
+            p.draw(dc, self);
         }
     }
 
@@ -249,8 +296,16 @@ class MainDelegate extends WatchUi.BehaviorDelegate {
         return true;
     }
 
-    // eat all swipes so a sloppy tap can't close the remote.
-    // physical back button still exits through the default onBack
+    // back closes the pop-up if one is open, otherwise default (exit)
+    function onBack() as Boolean {
+        if (view.popupOpen()) {
+            view.closePopup();
+            return true;
+        }
+        return false;
+    }
+
+    // eat all swipes so a sloppy tap can't close the remote
     function onSwipe(evt as WatchUi.SwipeEvent) as Boolean {
         return true;
     }
