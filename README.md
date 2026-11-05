@@ -18,10 +18,11 @@ Still in development. Only runs on the Venu Sq 2 for now.
 
 1. On the Roku, find its IP in Settings › Network › About.
    It looks something like 192.168.1.42.
-2. On your phone, open Connect IQ › Roku Remote › Settings and enter the IP.
-3. Add a room name if you want, something generic like "Living room".
-   It shows at the top of the watch screen. Leave it blank and it just says
-   Roku.
+2. On your phone, open the Connect IQ app, then Device › My Device Apps ›
+   Roku Remote › Settings. Enter the IP, then tap Save.
+3. In the same settings you can add a room name, something generic like
+   "Living room". It shows at the top of the watch screen. Leave it blank and
+   it just says Roku.
 
 ## Tips
 

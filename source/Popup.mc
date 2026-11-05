@@ -40,12 +40,13 @@ const POP_STEPS = [
         "Check the Roku is on and connected to home Wi-Fi.",
         "Your phone must be on the same Wi-Fi.",
         "On the Roku: Settings › System › Advanced system settings › Control by mobile apps › Network access › Enabled.",
-        "Check the Roku’s IP in the app settings."
+        "Check the IP on the watch: tap the gear, then Device."
     ],
     [
         "On the Roku: Settings › Network › About, and note the IP address.",
-        "On your phone: Connect IQ › Roku Remote › Settings.",
-        "Enter the IP (and a room name if you like), then save."
+        "On your phone, open the Connect IQ app.",
+        "Device › My Device Apps › Roku Remote › Settings.",
+        "Enter the IP, then tap Save."
     ],
     [
         "Your phone blocks plain web requests from watch apps.",
