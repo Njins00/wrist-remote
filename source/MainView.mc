@@ -140,8 +140,11 @@ class MainView extends WatchUi.View {
         header.measure(dc, self);
     }
 
+    // also runs when we come back from settings, so the rocker is right away
     function onShow() as Void {
         poke();
+        flashCell = -1;
+        loadMode();
         if (!played) {
             played = true;
             header.play();
@@ -218,11 +221,13 @@ class MainView extends WatchUi.View {
             mx = (x - ox) * RND_MOCK / sm;
             my = (y - oy) * RND_MOCK / sm;
         }
-        // header: gear and heart do nothing yet (phase 6 / 7), name replays.
-        // never reaches the send code below
+        // header: gear opens settings, heart does nothing yet (7.2), name
+        // replays. never reaches the send code below
         var top = header.hit(mx, my);
         if (top != TOP_NONE) {
-            if (top == TOP_NAME) {
+            if (top == TOP_GEAR) {
+                getRemoteApp().open(PAGE_SETTINGS);
+            } else if (top == TOP_NAME) {
                 header.play();
                 if (sending) {
                     header.pause();

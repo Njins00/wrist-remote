@@ -8,10 +8,19 @@ import Toybox.WatchUi;
 
 const IDLE_MS = 300000; // 5 min with no taps, then back to the watch face
 
+// pages on the settings path. back always goes up one level
+enum {
+    PAGE_REMOTE,
+    PAGE_SETTINGS
+}
+
 class RemoteApp extends Application.AppBase {
     // whichever screen is up, so settings changes reach it
     hidden var view as MainView or Null = null;
     hidden var onboard as OnboardView or Null = null;
+    // settings path: which page is up, and its view if it can refresh
+    hidden var page as Number = PAGE_REMOTE;
+    hidden var cur as WatchUi.View or Null = null;
     hidden var roku as RokuConnector;
     hidden var idle as Timer.Timer; // one for the whole app, every screen pokes it
 
@@ -43,6 +52,32 @@ class RemoteApp extends Application.AppBase {
         WatchUi.switchToView(v, new MainDelegate(v), WatchUi.SLIDE_IMMEDIATE);
     }
 
+    // a settings page takes the current one's place, so there's only ever
+    // one view on the stack
+    function open(p as Number) as Void {
+        if (p == PAGE_SETTINGS) {
+            var s = new SettingsView();
+            page = p;
+            cur = s;
+            WatchUi.switchToView(s, new ListDelegate(s), WatchUi.SLIDE_IMMEDIATE);
+        }
+    }
+
+    // one level up. settings goes back to the same remote, which reloads
+    // its mode in onShow
+    function up() as Void {
+        if (page == PAGE_SETTINGS) {
+            page = PAGE_REMOTE;
+            cur = null;
+            var v = view;
+            if (v == null) {
+                v = new MainView(roku);
+                view = v;
+            }
+            WatchUi.switchToView(v, new MainDelegate(v), WatchUi.SLIDE_IMMEDIATE);
+        }
+    }
+
     // settings edited in the phone app while we're open: new ip, room name or
     // volume layout. the connector reads the ip on every send
     function onSettingsChanged() as Void {
@@ -50,6 +85,10 @@ class RemoteApp extends Application.AppBase {
         if (o != null) {
             o.refreshSettings();
             return;
+        }
+        var c = cur;
+        if (c instanceof ListView) {
+            c.refresh();
         }
         var v = view;
         if (v != null) {
@@ -89,9 +128,15 @@ function isOnboarded() as Boolean {
 
 // room name from settings, "Roku" if blank, max 20 chars
 function roomName() as String {
+    var name = roomNameSet();
+    return name != null ? name : "Roku";
+}
+
+// same, but null if blank. settings shows "Not set" instead
+function roomNameSet() as String or Null {
     var name = Application.Properties.getValue("roomName");
     if (!(name instanceof String) || name.length() == 0) {
-        return "Roku";
+        return null;
     }
     if (name.length() > 20) {
         name = name.substring(0, 20);
