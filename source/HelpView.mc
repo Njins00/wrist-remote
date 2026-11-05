@@ -306,8 +306,15 @@ function backHitH(x as Number, y as Number, w as Number, hh as Number) as Boolea
     return x >= 0 && x < hx(HDR_HIT_W, w) && y >= 0 && y < hh;
 }
 
+// HelpView kind for pages that set their own text with page()
+const HELP_PAGE = -1;
+
 class HelpView extends WatchUi.View {
-    hidden var kind as Number;
+    // header and steps. from the pop-up kind, or set by page()
+    hidden var title as String = "";
+    hidden var list as Array<String> = [] as Array<String>;
+    // true = settings path: every back goes up one level
+    hidden var up as Boolean = false;
     hidden var offset as Number = 0;    // screen px scrolled down, 0 = top
     hidden var maxOffset as Number = 0;
     // worked out on the first onUpdate (needs a dc), texts never change
@@ -323,8 +330,32 @@ class HelpView extends WatchUi.View {
 
     function initialize(k as Number) {
         View.initialize();
-        kind = k;
+        if (k >= 0) {
+            title = POP_TITLES[k];
+            list = POP_STEPS[k] as Array<String>;
+        }
         round = isRound();
+    }
+
+    // settings path: own title and steps, back goes up a level
+    function page(t as String, s as Array<String>) as HelpView {
+        title = t;
+        list = s;
+        up = true;
+        return self;
+    }
+
+    function isPage() as Boolean {
+        return up;
+    }
+
+    // pop-up help sits on top of the remote, settings help replaces a page
+    function back() as Void {
+        if (up) {
+            getRemoteApp().up();
+        } else {
+            WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
+        }
     }
 
     // spacing: mockup px on square, 416 px on round
@@ -335,7 +366,7 @@ class HelpView extends WatchUi.View {
     hidden function layout(dc as Graphics.Dc) as Void {
         var w = dc.getWidth();
         var h = dc.getHeight();
-        hdrH = headerHeight(dc, POP_TITLES[kind]);
+        hdrH = headerHeight(dc, title);
         margin = hx(HELP_MARGIN, w);
         var textW = w - margin * 2;
         viewBot = h;
@@ -348,7 +379,6 @@ class HelpView extends WatchUi.View {
 
         // each step wrapped on its own, room for 6 lines so nothing's cut
         var lineH = dc.getFontHeight(Graphics.FONT_XTINY);
-        var list = POP_STEPS[kind] as Array<String>;
         for (var i = 0; i < list.size(); i++) {
             var s = (i + 1).toString() + ". " + list[i];
             var fit = Graphics.fitTextToArea(s, Graphics.FONT_XTINY, textW, lineH * 6, false);
@@ -426,7 +456,7 @@ class HelpView extends WatchUi.View {
         if (round) {
             dc.clearClip();
             drawRoundPills(dc, w, h);
-            drawHeader(dc, POP_TITLES[kind]);
+            drawHeader(dc, title);
             return;
         }
 
@@ -443,7 +473,7 @@ class HelpView extends WatchUi.View {
         }
 
         // header last so the steps slide under it
-        drawHeader(dc, POP_TITLES[kind]);
+        drawHeader(dc, title);
     }
 
     // round pills, 416 px: down 354-394 under the window, up 6 px under
@@ -473,7 +503,8 @@ class HelpDelegate extends WatchUi.BehaviorDelegate {
         view = v;
     }
 
-    // up/down scroll, left/right do nothing. true for all so swipe right never exits
+    // up/down scroll. right goes up a level on settings pages, else nothing.
+    // true for all so swipe right never exits
     function onSwipe(evt as WatchUi.SwipeEvent) as Boolean {
         getRemoteApp().poke();
         var dir = evt.getDirection();
@@ -482,6 +513,8 @@ class HelpDelegate extends WatchUi.BehaviorDelegate {
             view.scroll(1, h);
         } else if (dir == WatchUi.SWIPE_DOWN) {
             view.scroll(-1, h);
+        } else if (dir == WatchUi.SWIPE_RIGHT && view.isPage()) {
+            view.back();
         }
         return true;
     }
@@ -505,16 +538,17 @@ class HelpDelegate extends WatchUi.BehaviorDelegate {
         var xy = evt.getCoordinates();
         var ds = System.getDeviceSettings();
         if (view.backHit(xy[0], xy[1], ds.screenWidth)) {
-            WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
+            view.back();
         } else {
             view.tapScroll(xy[1], ds.screenHeight);
         }
         return true;
     }
 
-    // physical back goes back to the screen underneath
+    // physical back: the screen underneath, or up a level on settings pages
     function onBack() as Boolean {
-        WatchUi.popView(WatchUi.SLIDE_IMMEDIATE);
+        getRemoteApp().poke();
+        view.back();
         return true;
     }
 }

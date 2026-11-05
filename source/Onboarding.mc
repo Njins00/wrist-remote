@@ -78,6 +78,23 @@ const RND_CARD_PAD = 6;
 const TYPE_TITLES = ["Roku TV", "Roku stick or box"];
 const TYPE_SUBS = ["Roku built in", "Plugs into a TV"];
 
+// tv = volume buttons on, stick = off. onboarding and the settings picker
+// both save through here so the rule lives in one place
+function saveType(t as Number) as Void {
+    Application.Storage.setValue("deviceType", t);
+    Application.Properties.setValue("volumeButtons", t == TYPE_TV);
+}
+
+// saved type. missing (old installs) goes by the volume setting
+function deviceType() as Number {
+    var t = Application.Storage.getValue("deviceType");
+    if (t instanceof Number && (t == TYPE_TV || t == TYPE_STICK)) {
+        return t;
+    }
+    var v = Application.Properties.getValue("volumeButtons");
+    return v instanceof Boolean && v ? TYPE_TV : TYPE_STICK;
+}
+
 class OnboardView extends WatchUi.View {
     hidden var step as Number;
     hidden var first as Number;          // back on this screen exits
@@ -96,12 +113,23 @@ class OnboardView extends WatchUi.View {
     // round: 416 px tables, steps window top in screen px
     hidden var round as Boolean;
     hidden var winTop as Number = 0;
+    // settings picker: same cards, current type marked, no Continue,
+    // a tap saves and goes up a level
+    hidden var picker as Boolean;
 
-    function initialize(s as Number) {
+    function initialize(s as Number, pick as Boolean) {
         View.initialize();
         step = s;
         first = s;
         round = isRound();
+        picker = pick;
+        if (pick) {
+            picked = deviceType();
+        }
+    }
+
+    function isPicker() as Boolean {
+        return picker;
     }
 
     // mockup px -> screen px, 320x360 on square, the 416 circle on round.
@@ -178,15 +206,18 @@ class OnboardView extends WatchUi.View {
         if (picked < 0) {
             return;
         }
-        Application.Storage.setValue("deviceType", picked);
-        Application.Properties.setValue("volumeButtons", picked == TYPE_TV);
+        saveType(picked);
         Application.Storage.setValue("onboarded", true);
         getRemoteApp().showRemote();
     }
 
     // closes the pop-up first, else one step back. false on the first
-    // screen, so back exits
+    // screen, so back exits. picker: up a level
     function back() as Boolean {
+        if (picker) {
+            getRemoteApp().up();
+            return true;
+        }
         if (popup != null) {
             popup = null;
             WatchUi.requestUpdate();
@@ -268,11 +299,16 @@ class OnboardView extends WatchUi.View {
             var c = list[i];
             if (inBox(mx, my, c[0], c[1], c[2], c[3])) {
                 picked = i;
+                if (picker) {
+                    saveType(i);
+                    getRemoteApp().up();
+                    return;
+                }
                 WatchUi.requestUpdate();
                 return;
             }
         }
-        if (inBox(mx, my, b[0], b[1], b[2], b[3])) {
+        if (!picker && inBox(mx, my, b[0], b[1], b[2], b[3])) {
             next(); // does nothing until a card is picked
         }
     }
@@ -460,10 +496,12 @@ class OnboardView extends WatchUi.View {
                 Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
         }
 
-        drawButton(dc, w, h, "Continue", picked >= 0, false);
+        if (!picker) {
+            drawButton(dc, w, h, "Continue", picked >= 0, false);
+        }
 
         // help header: back arrow + title. becomes a device list later (home assistant)
-        drawHeader(dc, "Which device?");
+        drawHeader(dc, picker ? "Device type" : "Which device?");
     }
 
     // round pills (shared, round-sized): down at the bottom of the window,
@@ -519,7 +557,7 @@ class OnboardDelegate extends WatchUi.BehaviorDelegate {
     }
 
     // up/down scroll the setup screen if it needs it. true for all so a
-    // sloppy swipe can't close the app
+    // sloppy swipe can't close the app. picker: right goes up a level
     function onSwipe(evt as WatchUi.SwipeEvent) as Boolean {
         getRemoteApp().poke();
         var dir = evt.getDirection();
@@ -527,6 +565,8 @@ class OnboardDelegate extends WatchUi.BehaviorDelegate {
             view.scroll(1);
         } else if (dir == WatchUi.SWIPE_DOWN) {
             view.scroll(-1);
+        } else if (dir == WatchUi.SWIPE_RIGHT && view.isPicker()) {
+            view.back();
         }
         return true;
     }

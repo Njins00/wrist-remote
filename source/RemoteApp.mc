@@ -11,7 +11,11 @@ const IDLE_MS = 300000; // 5 min with no taps, then back to the watch face
 // pages on the settings path. back always goes up one level
 enum {
     PAGE_REMOTE,
-    PAGE_SETTINGS
+    PAGE_SETTINGS,
+    PAGE_DEVICE,
+    PAGE_IP,
+    PAGE_NAME,
+    PAGE_TYPE
 }
 
 class RemoteApp extends Application.AppBase {
@@ -39,7 +43,7 @@ class RemoteApp extends Application.AppBase {
             view = v;
             return [v, new MainDelegate(v)];
         }
-        var o = new OnboardView(ipOk ? STEP_TYPE : STEP_SETUP);
+        var o = new OnboardView(ipOk ? STEP_TYPE : STEP_SETUP, false);
         onboard = o;
         return [o, new OnboardDelegate(o)];
     }
@@ -53,20 +57,37 @@ class RemoteApp extends Application.AppBase {
     }
 
     // a settings page takes the current one's place, so there's only ever
-    // one view on the stack
+    // one view on the stack. each open reads the settings fresh
     function open(p as Number) as Void {
-        if (p == PAGE_SETTINGS) {
-            var s = new SettingsView();
-            page = p;
-            cur = s;
-            WatchUi.switchToView(s, new ListDelegate(s), WatchUi.SLIDE_IMMEDIATE);
+        page = p;
+        cur = null;
+        if (p == PAGE_SETTINGS || p == PAGE_DEVICE) {
+            var l = (p == PAGE_SETTINGS ? new SettingsView() : new DeviceView()) as ListView;
+            cur = l;
+            WatchUi.switchToView(l, new ListDelegate(l), WatchUi.SLIDE_IMMEDIATE);
+        } else if (p == PAGE_IP || p == PAGE_NAME) {
+            var hv = new HelpView(HELP_PAGE);
+            if (p == PAGE_IP) {
+                hv.page("Roku IP", POP_STEPS[POP_BAD_IP] as Array<String>);
+            } else {
+                hv.page("Room name", NAME_STEPS as Array<String>);
+            }
+            WatchUi.switchToView(hv, new HelpDelegate(hv), WatchUi.SLIDE_IMMEDIATE);
+        } else if (p == PAGE_TYPE) {
+            // not kept as onboard, so settings changes still reach the remote
+            var o = new OnboardView(STEP_TYPE, true);
+            WatchUi.switchToView(o, new OnboardDelegate(o), WatchUi.SLIDE_IMMEDIATE);
         }
     }
 
-    // one level up. settings goes back to the same remote, which reloads
-    // its mode in onShow
+    // one level up: help pages and the picker -> device -> settings ->
+    // the same remote, which reloads its mode in onShow
     function up() as Void {
-        if (page == PAGE_SETTINGS) {
+        if (page == PAGE_IP || page == PAGE_NAME || page == PAGE_TYPE) {
+            open(PAGE_DEVICE);
+        } else if (page == PAGE_DEVICE) {
+            open(PAGE_SETTINGS);
+        } else if (page == PAGE_SETTINGS) {
             page = PAGE_REMOTE;
             cur = null;
             var v = view;

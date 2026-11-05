@@ -1,8 +1,8 @@
 import Toybox.Application;
 import Toybox.Lang;
 
-// settings page, opened from the gear. a plain list (ListView.mc).
-// writes nothing, sends nothing
+// settings page (from the gear) and the device page under it. plain lists
+// (ListView.mc). they write nothing and send nothing, the picker saves
 
 // keep in step with manifest.xml, connect iq can't read it
 const APP_VERSION = "0.1.14";
@@ -29,7 +29,42 @@ class SettingsView extends ListView {
         ] as Array<Array>;
     }
 
-    // device page comes in 7.1b
     function open(i as Number) as Void {
+        getRemoteApp().open(PAGE_DEVICE);
+    }
+}
+
+// room name help. it shows in the remote's header, so keep it generic
+const NAME_STEPS = [
+    "On your phone, open the Connect IQ app.",
+    "Device › My Device Apps › Roku Remote › Settings.",
+    "Change Room name, then tap Save.",
+    "Keep it generic, like Living room. No personal names."
+];
+
+// one roku: ip, name, type. v2 reuses this per device
+class DeviceView extends ListView {
+    function initialize() {
+        ListView.initialize("Device");
+        load();
+    }
+
+    // only a real home ip gets drawn
+    function load() as Void {
+        var ip = "Not set";
+        if (homeIpSet()) {
+            ip = Application.Properties.getValue("rokuIp") as String;
+        }
+        var name = roomNameSet();
+        rows = [
+            ["IP", ip, true],
+            ["Name", name != null ? name : "Not set", true],
+            ["Device type", TYPE_TITLES[deviceType()] as String, true]
+        ] as Array<Array>;
+    }
+
+    function open(i as Number) as Void {
+        var pages = [PAGE_IP, PAGE_NAME, PAGE_TYPE];
+        getRemoteApp().open(pages[i] as Number);
     }
 }
