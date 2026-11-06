@@ -5,7 +5,7 @@ import Toybox.Lang;
 // (ListView.mc). they write nothing and send nothing, the picker saves
 
 // keep in step with manifest.xml, connect iq can't read it
-const APP_VERSION = "0.1.15";
+const APP_VERSION = "0.1.16";
 
 class SettingsView extends ListView {
     function initialize() {
@@ -25,12 +25,14 @@ class SettingsView extends ListView {
         }
         rows = [
             ["Device", sub, true],
+            ["Tip jar", "Buy me a coffee", true],
             ["App version", APP_VERSION, false]
         ] as Array<Array>;
     }
 
+    // app version has no chevron, so only 0 and 1 get here
     function open(i as Number) as Void {
-        getRemoteApp().open(PAGE_DEVICE);
+        getRemoteApp().open(i == 0 ? PAGE_DEVICE : PAGE_TIP);
     }
 }
 

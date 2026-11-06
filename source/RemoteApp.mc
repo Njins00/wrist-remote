@@ -8,6 +8,7 @@ import Toybox.WatchUi;
 
 const IDLE_MS = 300000; // 5 min with no taps, then back to the watch face
 const SENDS_MAX = 500;  // last tip milestone, no point counting past it
+const TIP_AT = [30, 150, 500]; // tip screen once each, on the next open
 
 // pages on the settings path. back always goes up one level
 enum {
@@ -16,7 +17,8 @@ enum {
     PAGE_DEVICE,
     PAGE_IP,
     PAGE_NAME,
-    PAGE_TYPE
+    PAGE_TYPE,
+    PAGE_TIP
 }
 
 class RemoteApp extends Application.AppBase {
@@ -31,6 +33,7 @@ class RemoteApp extends Application.AppBase {
     // successful sends, for the tip milestones. watch only, never sent
     hidden var sends as Number = 0;
     hidden var sendsSaved as Number = 0;
+    hidden var tipLaunch as Boolean = false; // tip came up on open, back = remote
 
     function initialize() {
         AppBase.initialize();
@@ -63,11 +66,40 @@ class RemoteApp extends Application.AppBase {
         }
     }
 
-    // remote if we're set up, otherwise onboarding (setup if no ip yet)
+    // next milestone reached? skips past every one we've hit so a big jump
+    // shows one tip. "tipsShown" is written here so it never shows twice
+    hidden function tipDue() as Boolean {
+        var v = Application.Storage.getValue("tipsShown");
+        var shown = 0;
+        if (v instanceof Number && v > 0) {
+            shown = v;
+        }
+        // all done. check first, TIP_AT[3] would crash every launch
+        if (shown >= TIP_AT.size()) {
+            return false;
+        }
+        if (sends < (TIP_AT[shown] as Number)) {
+            return false;
+        }
+        while (shown < TIP_AT.size() && sends >= (TIP_AT[shown] as Number)) {
+            shown++;
+        }
+        Application.Storage.setValue("tipsShown", shown);
+        return true;
+    }
+
+    // remote if we're set up, otherwise onboarding (setup if no ip yet).
+    // a due tip goes first, never mid-use
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
         poke();
         var ipOk = homeIpSet();
         if (ipOk && isOnboarded()) {
+            if (tipDue()) {
+                page = PAGE_TIP;
+                tipLaunch = true;
+                var t = new TipView();
+                return [t, new TipDelegate(t)];
+            }
             var v = new MainView(roku);
             view = v;
             return [v, new MainDelegate(v)];
@@ -106,17 +138,26 @@ class RemoteApp extends Application.AppBase {
             // not kept as onboard, so settings changes still reach the remote
             var o = new OnboardView(STEP_TYPE, true);
             WatchUi.switchToView(o, new OnboardDelegate(o), WatchUi.SLIDE_IMMEDIATE);
+        } else if (p == PAGE_TIP) {
+            // from the tip jar row, so back goes to settings
+            tipLaunch = false;
+            var t = new TipView();
+            WatchUi.switchToView(t, new TipDelegate(t), WatchUi.SLIDE_IMMEDIATE);
         }
     }
 
     // one level up: help pages and the picker -> device -> settings ->
-    // the same remote, which reloads its mode in onShow
+    // the same remote, which reloads its mode in onShow. the tip goes back
+    // to settings, or to the remote if it came up on open
     function up() as Void {
-        if (page == PAGE_IP || page == PAGE_NAME || page == PAGE_TYPE) {
+        if (page == PAGE_TIP && !tipLaunch) {
+            open(PAGE_SETTINGS);
+        } else if (page == PAGE_IP || page == PAGE_NAME || page == PAGE_TYPE) {
             open(PAGE_DEVICE);
         } else if (page == PAGE_DEVICE) {
             open(PAGE_SETTINGS);
-        } else if (page == PAGE_SETTINGS) {
+        } else if (page == PAGE_SETTINGS || page == PAGE_TIP) {
+            tipLaunch = false;
             page = PAGE_REMOTE;
             cur = null;
             var v = view;
