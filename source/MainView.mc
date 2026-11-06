@@ -221,8 +221,8 @@ class MainView extends WatchUi.View {
             mx = (x - ox) * RND_MOCK / sm;
             my = (y - oy) * RND_MOCK / sm;
         }
-        // header: gear opens settings, heart does nothing yet (7.2), name
-        // replays. never reaches the send code below
+        // header: gear opens settings, name replays, the right slot does
+        // nothing. never reaches the send code below
         var top = header.hit(mx, my);
         if (top != TOP_NONE) {
             if (top == TOP_GEAR) {
@@ -272,6 +272,7 @@ class MainView extends WatchUi.View {
     function onResult(result as Number) as Void {
         sending = false;
         if (result == RESULT_SENT) {
+            getRemoteApp().sent(); // tip counter, stays on the watch
             header.resume();
             return; // the flash was the feedback
         } else if (result == RESULT_NO_PHONE) {

@@ -38,6 +38,9 @@ Still in development. Only runs on the Venu Sq 2 for now.
 - The watch only sends key presses to your Roku's IP on port 8060, through
   the Garmin Connect app on your phone. Nothing else.
 - Your Roku IP and room name live in the app's settings.
+- The watch counts successful button presses, only to know when to show
+  the Tip jar screen. The count stays on the watch and is never sent
+  anywhere.
 
 ## Limits
 

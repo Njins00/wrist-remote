@@ -3,18 +3,18 @@ import Toybox.Lang;
 import Toybox.Timer;
 import Toybox.WatchUi;
 
-// remote header: gear, heart, accent dot + room name. long names scroll twice.
+// remote header: gear, accent dot + room name. long names scroll twice.
 // the name is only drawn here, never sent or logged
 
 // what hit() says
 enum {
     TOP_NONE,
     TOP_GEAR,
-    TOP_HEART,
     TOP_NAME
 }
 
-// mockup px per shape: gear x, heart x, button y, button size, button radius,
+// mockup px per shape: gear x, right slot x (empty until the v2 switcher),
+// button y, button size, button radius,
 // name x, name w (dot + gap + text, 8 px clear of the buttons), name y,
 // middle x, clip bottom
 const TOP_SQ = [20, 264, 8, 36, 12, 64, 192, 26, 160, 52];
@@ -138,13 +138,11 @@ class Header {
             if (mx < 135) {
                 return TOP_GEAR;
             }
-            return mx >= 281 ? TOP_HEART : TOP_NAME;
+            // right slot is empty for now
+            return mx >= 281 ? TOP_NONE : TOP_NAME;
         }
         if (my < 56 && mx < 80) {
             return TOP_GEAR;
-        }
-        if (my < 56 && mx >= 240) {
-            return TOP_HEART;
         }
         if (my < 52 && mx >= 80 && mx < 240) {
             return TOP_NAME;
@@ -160,7 +158,6 @@ class Header {
         var ink = dim ? COL_TEXT_DIM : COL_ICON;
 
         drawGear(dc, v, btn, ink);
-        drawHeart(dc, v, btn, ink);
 
         // dot + name
         var cy = v.sy(lay[7]);
@@ -219,17 +216,5 @@ class Header {
         dc.fillCircle(cx, cy, v.rs(7));
         dc.setColor(btn, Graphics.COLOR_TRANSPARENT);
         dc.fillCircle(cx, cy, v.rs(3));
-    }
-
-    // two circles + a triangle
-    hidden function drawHeart(dc as Graphics.Dc, v as MainView, btn as Number, ink as Number) as Void {
-        var c = button(dc, v, lay[1], btn);
-        var cx = c[0];
-        var cy = c[1];
-        var r = v.rs(5);
-        dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
-        dc.fillCircle(cx - r, cy - v.rs(3), r);
-        dc.fillCircle(cx + r, cy - v.rs(3), r);
-        dc.fillPolygon([[cx - r * 2, cy - v.rs(2)], [cx + r * 2, cy - v.rs(2)], [cx, cy + v.rs(8)]]);
     }
 }

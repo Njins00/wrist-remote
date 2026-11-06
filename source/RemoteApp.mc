@@ -7,6 +7,7 @@ import Toybox.WatchUi;
 // app shell. the remote screen lives in MainView.mc, first run in Onboarding.mc
 
 const IDLE_MS = 300000; // 5 min with no taps, then back to the watch face
+const SENDS_MAX = 500;  // last tip milestone, no point counting past it
 
 // pages on the settings path. back always goes up one level
 enum {
@@ -27,11 +28,39 @@ class RemoteApp extends Application.AppBase {
     hidden var cur as WatchUi.View or Null = null;
     hidden var roku as RokuConnector;
     hidden var idle as Timer.Timer; // one for the whole app, every screen pokes it
+    // successful sends, for the tip milestones. watch only, never sent
+    hidden var sends as Number = 0;
+    hidden var sendsSaved as Number = 0;
 
     function initialize() {
         AppBase.initialize();
         roku = new RokuConnector();
         idle = new Timer.Timer();
+    }
+
+    // old installs have no count yet, they start at 0
+    function onStart(state as Dictionary?) as Void {
+        var n = Application.Storage.getValue("sends");
+        sends = 0;
+        if (n instanceof Number && n > 0) {
+            sends = n > SENDS_MAX ? SENDS_MAX : n;
+        }
+        sendsSaved = sends;
+    }
+
+    // the only place the count gets written, and only if it moved
+    function onStop(state as Dictionary?) as Void {
+        if (sends != sendsSaved) {
+            Application.Storage.setValue("sends", sends);
+            sendsSaved = sends;
+        }
+    }
+
+    // one key got to the roku
+    function sent() as Void {
+        if (sends < SENDS_MAX) {
+            sends++;
+        }
     }
 
     // remote if we're set up, otherwise onboarding (setup if no ip yet)
