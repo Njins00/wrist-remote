@@ -112,6 +112,11 @@ Wi-Fi as the Roku.
 - v3: more controls
 - Later: TVs through Home Assistant
 
+## Product notes
+
+Why it works the way it does, the trade-offs, and what I'd measure:
+[docs/PRODUCT.md](docs/PRODUCT.md)
+
 ## Support
 
 It's free. If it's useful to you, you can buy me a coffee at
