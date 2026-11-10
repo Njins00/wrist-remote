@@ -97,12 +97,6 @@ Wi-Fi as the Roku.
 - Your phone has to be within Bluetooth range of the watch.
 - One Roku at a time for now.
 
-## Tips
-
-- To let the remote wake your TV, try turning on CEC with 1-Touch Play and
-  TV Power, and power the stick from a wall adapter instead of the TV's USB
-  port.
-
 ## Build it yourself
 
 - Install the Connect IQ SDK.
