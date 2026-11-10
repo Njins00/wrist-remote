@@ -184,26 +184,14 @@ class TipView extends WatchUi.View {
         pill(dc, w, h, lay[6], lay[7], lay[8], close, COL_BTN, true, lf);
     }
 
-    // same look as the pop-up buttons. shared later in the tidy-up step
+    // mockup px -> screen px, then the pop-up's pill (drawPill in Popup.mc)
     hidden function pill(dc as Graphics.Dc, sw as Number, sh as Number, mx as Number, my as Number, mw as Number,
             label as String, fill as Number, edged as Boolean, font as Graphics.FontDefinition) as Void {
         var x = px(mx, sw, sh);
         var y = py(my, sw, sh);
         var w = px(mx + mw, sw, sh) - x;
         var h = py(my + lay[9], sw, sh) - y;
-        if (edged) {
-            var e = pr(CARD_EDGE, sw, sh);
-            dc.setColor(COL_CARD_EDGE, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(x, y, w, h, h / 2);
-            dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(x + e, y + e, w - e * 2, h - e * 2, h / 2 - e);
-        } else {
-            dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(x, y, w, h, h / 2);
-        }
-        dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x + w / 2, y + h / 2, font, label,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawPill(dc, x, y, w, h, pr(CARD_EDGE, sw, sh), label, fill, edged, font);
     }
 }
 

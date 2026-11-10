@@ -339,25 +339,31 @@ class Popup {
         }
     }
 
+    // mockup px -> screen px, then the shared pill
     hidden function drawButton(dc as Graphics.Dc, sw as Number, sh as Number, my as Number, label as String,
             fill as Number, edged as Boolean, font as Graphics.FontDefinition) as Void {
         var x = px(btnX, sw, sh);
         var y = py(my, sw, sh);
         var w = px(btnX + btnW, sw, sh) - x;
         var h = py(my + POP_BTN_H, sw, sh) - y;
-        if (edged) {
-            // dark on dark, the edge makes it read as a button
-            var e = pr(CARD_EDGE, sw, sh);
-            dc.setColor(COL_CARD_EDGE, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(x, y, w, h, h / 2);
-            dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(x + e, y + e, w - e * 2, h - e * 2, h / 2 - e);
-        } else {
-            dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
-            dc.fillRoundedRectangle(x, y, w, h, h / 2);
-        }
-        dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(x + w / 2, y + h / 2, font, label,
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+        drawPill(dc, x, y, w, h, pr(CARD_EDGE, sw, sh), label, fill, edged, font);
     }
+}
+
+// pill button, screen px. e = edge width. pop-up and tip screen both use it
+function drawPill(dc as Graphics.Dc, x as Number, y as Number, w as Number, h as Number, e as Number,
+        label as String, fill as Number, edged as Boolean, font as Graphics.FontDefinition) as Void {
+    if (edged) {
+        // dark on dark, the edge makes it read as a button
+        dc.setColor(COL_CARD_EDGE, Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(x, y, w, h, h / 2);
+        dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(x + e, y + e, w - e * 2, h - e * 2, h / 2 - e);
+    } else {
+        dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
+        dc.fillRoundedRectangle(x, y, w, h, h / 2);
+    }
+    dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
+    dc.drawText(x + w / 2, y + h / 2, font, label,
+        Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 }
