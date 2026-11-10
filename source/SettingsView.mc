@@ -5,7 +5,7 @@ import Toybox.Lang;
 // (ListView.mc). they write nothing and send nothing, the picker saves
 
 // keep in step with manifest.xml, connect iq can't read it
-const APP_VERSION = "0.1.16";
+const APP_VERSION = "1.0.0";
 
 class SettingsView extends ListView {
     function initialize() {
@@ -39,7 +39,7 @@ class SettingsView extends ListView {
 // room name help. it shows in the remote's header, so keep it generic
 const NAME_STEPS = [
     "On your phone, open the Connect IQ app.",
-    "Device › My Device Apps › Roku Remote › Settings.",
+    "Device › My Device Apps › Wrist Remote › Settings.",
     "Change Room name, then tap Save.",
     "Keep it generic, like Living room. No personal names."
 ];

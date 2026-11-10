@@ -45,7 +45,7 @@ const POP_STEPS = [
     [
         "On the Roku: Settings › Network › About, and note the IP address.",
         "On your phone, open the Connect IQ app.",
-        "Device › My Device Apps › Roku Remote › Settings.",
+        "Device › My Device Apps › Wrist Remote › Settings.",
         "Enter the IP, then tap Save."
     ],
     [
