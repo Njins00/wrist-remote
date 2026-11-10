@@ -28,72 +28,47 @@ const TOP_PASSES = 2;
 
 const COL_ICON = 0xA7B0B5;
 
-class Header {
-    hidden var name as String;
-    hidden var round as Boolean;
-    hidden var lay as Array<Number>; // TOP_SQ or TOP_RND
-    hidden var dirty as Boolean = true; // re-measure on next draw
-    hidden var scrolls as Boolean = false; // name too wide for the window
-    // screen px, worked out in measure()
-    hidden var textW as Number = 0;
-    hidden var stepPx as Number = 1;
-    hidden var loopPx as Number = 1;
-    // marquee
-    hidden var offset as Number = 0;
-    hidden var passes as Number = 0;
+// the one marquee: room name here, long lines on list pages.
+// same speed, twice, then stop. one timer, only runs while something's moving
+class Marquee {
+    hidden var timer as Timer.Timer;
+    hidden var travel as Number = 0;
+    hidden var limit as Number = 0;  // 0 = nothing to scroll
+    hidden var step as Number = 1;
     hidden var running as Boolean = false;
     hidden var paused as Boolean = false;
-    hidden var timer as Timer.Timer;
 
-    // normal case, it's narrower than all caps
-    function initialize(r as Boolean) {
-        round = r;
-        lay = r ? TOP_RND : TOP_SQ;
-        name = roomName();
+    function initialize() {
         timer = new Timer.Timer();
     }
 
-    // settings changed: new name, measure again, no replay
-    function refresh() as Void {
+    // longest loop (text + gap), screen px. 0 = all fits
+    function setup(maxLoop as Number, stepPx as Number) as Void {
         stop();
-        name = roomName();
-        dirty = true;
+        limit = maxLoop * TOP_PASSES;
+        step = stepPx < 1 ? 1 : stepPx;
     }
 
-    function measure(dc as Graphics.Dc, v as MainView) as Void {
-        textW = dc.getTextWidthInPixels(name, Graphics.FONT_XTINY);
-        var room = v.sx(lay[5] + lay[6]) - v.sx(lay[5] + TOP_DOT + TOP_DOT_GAP);
-        scrolls = textW > room;
-        // minus sx(0) so the round centring offset doesn't count
-        stepPx = v.sx(TOP_STEP) - v.sx(0);
-        if (stepPx < 1) { stepPx = 1; }
-        loopPx = textW + v.sx(TOP_LOOP_GAP) - v.sx(0);
-        dirty = false;
-    }
-
-    // start from the beginning. short names never start the timer
     function play() as Void {
-        if (dirty || !scrolls) {
+        if (limit == 0) {
             return;
         }
         timer.stop();
-        offset = 0;
-        passes = 0;
+        travel = 0;
         running = true;
         paused = false;
         timer.start(method(:tick), TOP_TICK_MS, false);
     }
 
-    // back to the start of the name, timer off
+    // back to the start, timer off
     function stop() as Void {
         timer.stop();
         running = false;
         paused = false;
-        offset = 0;
-        passes = 0;
+        travel = 0;
     }
 
-    // while a key is being sent, so we never run 4 timers at once
+    // holds the spot, timer off
     function pause() as Void {
         if (running && !paused) {
             timer.stop();
@@ -108,23 +83,86 @@ class Header {
         }
     }
 
-    // one-shot, re-arms itself only while there's more to scroll
+    // one-shot, re-armed only while there's more to go
     function tick() as Void {
         if (!running || paused) {
             return;
         }
-        offset += stepPx;
-        if (offset >= loopPx) {
-            offset -= loopPx;
-            passes++;
-            if (passes >= TOP_PASSES) {
-                stop(); // ends on the start of the name
-                WatchUi.requestUpdate();
-                return;
-            }
+        travel += step;
+        if (travel >= limit) {
+            stop(); // ends on the start of every line
+            WatchUi.requestUpdate();
+            return;
         }
         timer.start(method(:tick), TOP_TICK_MS, false);
         WatchUi.requestUpdate();
+    }
+
+    function isRunning() as Boolean {
+        return running;
+    }
+
+    // how far a line with this loop length has moved
+    function shift(loop as Number) as Number {
+        return running ? travel % loop : 0;
+    }
+}
+
+class Header {
+    hidden var name as String;
+    hidden var round as Boolean;
+    hidden var lay as Array<Number>; // TOP_SQ or TOP_RND
+    hidden var dirty as Boolean = true; // re-measure on next draw
+    hidden var scrolls as Boolean = false; // name too wide for the window
+    // screen px, worked out in measure()
+    hidden var textW as Number = 0;
+    hidden var loopPx as Number = 1;
+    hidden var marq as Marquee;
+
+    // normal case, it's narrower than all caps
+    function initialize(r as Boolean) {
+        round = r;
+        lay = r ? TOP_RND : TOP_SQ;
+        name = roomName();
+        marq = new Marquee();
+    }
+
+    // settings changed: new name, measure again, no replay.
+    // limit 0 until measured, so play() can't start early
+    function refresh() as Void {
+        marq.setup(0, 1);
+        name = roomName();
+        dirty = true;
+    }
+
+    function measure(dc as Graphics.Dc, v as MainView) as Void {
+        textW = dc.getTextWidthInPixels(name, Graphics.FONT_XTINY);
+        var room = v.sx(lay[5] + lay[6]) - v.sx(lay[5] + TOP_DOT + TOP_DOT_GAP);
+        scrolls = textW > room;
+        // minus sx(0) so the round centring offset doesn't count
+        var stepPx = v.sx(TOP_STEP) - v.sx(0);
+        loopPx = textW + v.sx(TOP_LOOP_GAP) - v.sx(0);
+        marq.setup(scrolls ? loopPx : 0, stepPx);
+        dirty = false;
+    }
+
+    // start from the beginning. short names never start the timer
+    function play() as Void {
+        marq.play();
+    }
+
+    // back to the start of the name, timer off
+    function stop() as Void {
+        marq.stop();
+    }
+
+    // while a key is being sent, so we never run 4 timers at once
+    function pause() as Void {
+        marq.pause();
+    }
+
+    function resume() as Void {
+        marq.resume();
     }
 
     // mx,my in mockup px. generous areas, all above the Up arm's tap area
@@ -178,10 +216,11 @@ class Header {
         if (scrolls) {
             var right = v.sx(lay[5] + lay[6]);
             dc.setClip(tx, 0, right - tx, v.sy(lay[9]));
-            dc.drawText(tx - offset, cy, Graphics.FONT_XTINY, name, just);
-            if (running) {
+            var x = tx - marq.shift(loopPx);
+            dc.drawText(x, cy, Graphics.FONT_XTINY, name, just);
+            if (marq.isRunning()) {
                 // second copy so the loop has no hole
-                dc.drawText(tx - offset + loopPx, cy, Graphics.FONT_XTINY, name, just);
+                dc.drawText(x + loopPx, cy, Graphics.FONT_XTINY, name, just);
             }
             dc.clearClip();
         } else {

@@ -1,7 +1,6 @@
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
-import Toybox.Timer;
 import Toybox.WatchUi;
 
 // shared list page: rows of title + grey line under it, thin dividers, a
@@ -16,68 +15,7 @@ const RND_LIST_W = 280;
 const LIST_PAD = 10;      // above the title and below the grey line
 const LIST_GAP = 2;       // between the two lines
 const LIST_CHEV_W = 32;   // kept free on the right of every row
-
-// long lines scroll like the room name: same speed, twice, then stop.
-// one timer, only runs while something's moving
-class Marquee {
-    hidden var timer as Timer.Timer;
-    hidden var travel as Number = 0;
-    hidden var limit as Number = 0;  // 0 = nothing to scroll
-    hidden var step as Number = 1;
-    hidden var running as Boolean = false;
-
-    function initialize() {
-        timer = new Timer.Timer();
-    }
-
-    // longest loop on the page (text + gap), screen px. 0 = all fits
-    function setup(maxLoop as Number, stepPx as Number) as Void {
-        stop();
-        limit = maxLoop * TOP_PASSES;
-        step = stepPx < 1 ? 1 : stepPx;
-    }
-
-    function play() as Void {
-        if (limit == 0) {
-            return;
-        }
-        timer.stop();
-        travel = 0;
-        running = true;
-        timer.start(method(:tick), TOP_TICK_MS, false);
-    }
-
-    // back to the start, timer off
-    function stop() as Void {
-        timer.stop();
-        running = false;
-        travel = 0;
-    }
-
-    // one-shot, re-armed only while there's more to go
-    function tick() as Void {
-        if (!running) {
-            return;
-        }
-        travel += step;
-        if (travel >= limit) {
-            stop(); // ends on the start of every line
-            WatchUi.requestUpdate();
-            return;
-        }
-        timer.start(method(:tick), TOP_TICK_MS, false);
-        WatchUi.requestUpdate();
-    }
-
-    function isRunning() as Boolean {
-        return running;
-    }
-
-    // how far a line with this loop length has moved
-    function shift(loop as Number) as Number {
-        return running ? travel % loop : 0;
-    }
-}
+// long lines scroll with the Marquee in Header.mc, same as the room name
 
 class ListView extends WatchUi.View {
     hidden var round as Boolean;
