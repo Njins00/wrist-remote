@@ -3,6 +3,8 @@
 A free, open-source Garmin watch app that works as a remote for your Roku.
 Tap the watch, the TV listens.
 
+Get it on the Connect IQ store: https://apps.garmin.com/en-US/apps/d5dd4bc3-d3fe-400e-8dde-e9b6420a9735
+
 ## Why I built it
 
 I keep losing my Roku remote. Under the couch, in the kitchen, and once in the fridge while grabbing a beer.
@@ -70,6 +72,11 @@ Wi-Fi as the Roku.
   the watch and is never sent anywhere.
 - Open on phone, on the tip jar screen, hands your phone one fixed Ko-fi
   link, and only when you tap it.
+- The Connect IQ store lists "Send/receive information to/from the
+  Internet". That's Garmin's standard label for any network access. Wrist
+  Remote only uses it to send button presses to your own Roku on your home
+  network, and to open the Ko-fi page on your phone if you tap Open on
+  phone. Nothing else is sent anywhere.
 
 ## Battery
 
