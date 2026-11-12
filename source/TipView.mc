@@ -12,7 +12,7 @@ const TIP_URL = "https://ko-fi.com/njinsapps"; // fixed, never built from anythi
 // mockup px: text top, title x, title w, button 1 x, y, w, button 2 x, y, w,
 // button h, min gap round the qr. the sub line is always xtiny, measured to fit
 // square: 38 px pills and 8 px gaps so the qr isn't jammed in (venusq2:
-// text 8-86, qr box 95-248, buttons 258-296 and 304-342)
+// qr box centred under the text, buttons 258-296 and 304-342)
 const TIP_SQ = [8, 20, 280, 38, 258, 244, 38, 304, 244, 38, 8];
 // round 416: title room stays inside the circle at y 52, button 2 is
 // narrower so its ends clear the edge (14 px spare)
