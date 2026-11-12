@@ -1,4 +1,5 @@
 <drawables xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
-    <!-- smaller qr for the 260 px screen, 29 modules at 3 px. rest comes from resources/ -->
+    <!-- smaller qr for mip and round <= 280 px, 29 modules at 3 px. devices are
+         listed in monkey.jungle. rest comes from resources/ -->
     <bitmap id="QrKofi" filename="qr_kofi.png" dithering="none" />
 </drawables>

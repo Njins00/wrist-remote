@@ -1,1 +1,9 @@
 project.manifest = manifest.xml
+
+# small qr (87 px) for every mip screen and every round screen of 280 px or less.
+# new device that fits that = add a line here
+fenix7.resourcePath = $(fenix7.resourcePath);resources-smallqr
+fenix7x.resourcePath = $(fenix7x.resourcePath);resources-smallqr
+vivoactive4.resourcePath = $(vivoactive4.resourcePath);resources-smallqr
+vivoactive4s.resourcePath = $(vivoactive4s.resourcePath);resources-smallqr
+vivoactive3m.resourcePath = $(vivoactive3m.resourcePath);resources-smallqr

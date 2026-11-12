@@ -1,5 +1,6 @@
 <drawables xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <bitmap id="LauncherIcon" filename="launcher_icon.svg" dithering="none" />
-    <!-- tip jar: ko-fi.com/njinsapps, 29 modules at 5 px. fenix7 has its own -->
+    <!-- tip jar: ko-fi.com/njinsapps, 29 modules at 5 px. mip and small round
+         get resources-smallqr (monkey.jungle) -->
     <bitmap id="QrKofi" filename="qr_kofi.png" dithering="none" />
 </drawables>
