@@ -74,6 +74,11 @@ const RND_TYPE_CARDS = [
     [72, 188, 272, 80]
 ];
 const RND_CARD_PAD = 6;
+// how far the type cards may drop if the header's tall (small round). mockup px:
+// continue / picker. round: continue's ends hit the circle at 66, card 2's
+// corners at 107. square: 8 px off the bottom
+const RND_TYPE_ROOM = [60, 100];
+const TYPE_ROOM = [20, 92];
 
 const TYPE_TITLES = ["Roku TV", "Roku stick or box"];
 const TYPE_SUBS = ["Roku built in", "Plugs into a TV"];
@@ -116,6 +121,10 @@ class OnboardView extends WatchUi.View {
     // settings picker: same cards, current type marked, no Continue,
     // a tap saves and goes up a level
     hidden var picker as Boolean;
+    // type screen: how far the cards (and continue) drop so the header
+    // can't cover card 1. 0 unless it would. screen px for drawing, mockup px for taps
+    hidden var shiftY as Number = 0;
+    hidden var shiftM as Number = 0;
 
     function initialize(s as Number, pick as Boolean) {
         View.initialize();
@@ -297,7 +306,7 @@ class OnboardView extends WatchUi.View {
         var list = cards();
         for (var i = 0; i < list.size(); i++) {
             var c = list[i];
-            if (inBox(mx, my, c[0], c[1], c[2], c[3])) {
+            if (inBox(mx, my, c[0], c[1] + shiftM, c[2], c[3])) {
                 picked = i;
                 if (picker) {
                     saveType(i);
@@ -308,9 +317,32 @@ class OnboardView extends WatchUi.View {
                 return;
             }
         }
-        if (!picker && inBox(mx, my, b[0], b[1], b[2], b[3])) {
+        if (!picker && inBox(mx, my, b[0], b[1] + shiftM, b[2], b[3])) {
             next(); // does nothing until a card is picked
         }
+    }
+
+    hidden function typeTitle() as String {
+        return picker ? "Device type" : "Which device?";
+    }
+
+    // small screens: the real title font is taller than the mockup thinks.
+    // drop the cards just enough, capped so the lowest one stays on screen
+    hidden function typeShift(dc as Graphics.Dc, w as Number, h as Number) as Void {
+        shiftY = 0;
+        shiftM = 0;
+        var top = py((cards()[0] as Array<Number>)[1], w, h);
+        var hdr = headerHeight(dc, typeTitle());
+        if (hdr <= top) {
+            return;
+        }
+        var room = (round ? RND_TYPE_ROOM : TYPE_ROOM)[picker ? 1 : 0] as Number;
+        shiftY = hdr - top + ph(4, w, h);
+        if (shiftY > ph(room, w, h)) {
+            shiftY = ph(room, w, h);
+        }
+        var m = round ? (w < h ? w : h) : h;
+        shiftM = shiftY * (round ? RND_MOCK : MOCK_H) / m;
     }
 
     // mockup px, with the usual slack
@@ -327,6 +359,8 @@ class OnboardView extends WatchUi.View {
         if (step == STEP_SETUP) {
             drawSetup(dc, w, h);
         } else {
+            // once, before anything draws, so cards and continue match
+            typeShift(dc, w, h);
             drawType(dc, w, h);
         }
         var p = popup;
@@ -464,9 +498,10 @@ class OnboardView extends WatchUi.View {
         for (var i = 0; i < list.size(); i++) {
             var c = list[i];
             var x = px(c[0], w, h);
-            var y = py(c[1], w, h);
+            var y0 = py(c[1], w, h);
+            var y = y0 + shiftY;
             var cw = px(c[0] + c[2], w, h) - x;
-            var ch = py(c[1] + c[3], w, h) - y;
+            var ch = py(c[1] + c[3], w, h) - y0;
             var r = pr(TYPE_CARD_R, w, h);
             // edge colour full size, then the fill inside it. picked = thicker violet edge
             var on = i == picked;
@@ -501,7 +536,7 @@ class OnboardView extends WatchUi.View {
         }
 
         // help header: back arrow + title. becomes a device list later (home assistant)
-        drawHeader(dc, picker ? "Device type" : "Which device?");
+        drawHeader(dc, typeTitle());
     }
 
     // round pills (shared, round-sized): down at the bottom of the window,
@@ -521,9 +556,10 @@ class OnboardView extends WatchUi.View {
             on as Boolean, dim as Boolean) as Void {
         var b = btnRect();
         var x = px(b[0], w, h);
-        var y = py(b[1], w, h);
+        var y0 = py(b[1], w, h);
+        var y = y0 + (step == STEP_TYPE ? shiftY : 0); // setup's button never moves
         var bw = px(b[0] + b[2], w, h) - x;
-        var bh = py(b[1] + b[3], w, h) - y;
+        var bh = py(b[1] + b[3], w, h) - y0;
         var fill = on ? (dim ? COL_ACCENT_DIM : COL_ACCENT) : COL_BTN;
         dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
         dc.fillRoundedRectangle(x, y, bw, bh, bh / 2);
