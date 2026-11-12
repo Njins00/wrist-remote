@@ -90,8 +90,11 @@ Wi-Fi as the Roku.
 ## Supported watches
 
 - Venu Sq 2: tested on a real watch.
-- Forerunner 265, Venu 3: tested in the Garmin simulator.
-- fēnix 7: tested in the simulator. Colours may look off on its 64-colour screen; a fix is planned.
+- Forerunner 265, Venu 3, Venu 2S, vívoactive 5, fēnix 9 Pro 51mm: tested in the simulator.
+- fēnix 7, fēnix 7X, vívoactive 4, vívoactive 4S, vívoactive 3 Music: tested in the simulator.
+  quatix 7 shares hardware with fēnix 7, and tactix 7, quatix 7X Solar and Enduro 2 share it
+  with fēnix 7X. They should work the same but weren't tested on their own.
+  Colours may look off on all of these 64-colour screens; a fix is planned.
 
 ## Limits
 

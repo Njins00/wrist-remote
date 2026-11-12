@@ -5,7 +5,7 @@ import Toybox.Lang;
 // (ListView.mc). they write nothing and send nothing, the picker saves
 
 // keep in step with manifest.xml, connect iq can't read it
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.0.1";
 
 class SettingsView extends ListView {
     function initialize() {
