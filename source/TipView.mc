@@ -180,18 +180,22 @@ class TipView extends WatchUi.View {
             f = f2;
         }
         var lf = FIT_FONTS[f] as Graphics.FontDefinition;
-        pill(dc, w, h, lay[3], lay[4], lay[5], "Open on phone", COL_ACCENT, false, lf);
-        pill(dc, w, h, lay[6], lay[7], lay[8], close, COL_BTN, true, lf);
+        pill(dc, w, h, 0, "Open on phone", COL_ACCENT, false, lf);
+        pill(dc, w, h, 1, close, COL_BTN, true, lf);
     }
 
-    // mockup px -> screen px, then the pop-up's pill (drawPill in Popup.mc)
-    hidden function pill(dc as Graphics.Dc, sw as Number, sh as Number, mx as Number, my as Number, mw as Number,
+    // button b (0 open, 1 close) from lay, mockup px -> screen px, then the
+    // pop-up's pill (drawPill in Popup.mc)
+    hidden function pill(dc as Graphics.Dc, sw as Number, sh as Number, b as Number,
             label as String, fill as Number, edged as Boolean, font as Graphics.FontDefinition) as Void {
+        var mx = lay[3 + b * 3];
+        var my = lay[4 + b * 3];
+        var mw = lay[5 + b * 3];
         var x = px(mx, sw, sh);
         var y = py(my, sw, sh);
         var w = px(mx + mw, sw, sh) - x;
         var h = py(my + lay[9], sw, sh) - y;
-        drawPill(dc, x, y, w, h, pr(CARD_EDGE, sw, sh), label, fill, edged, font);
+        drawPill(dc, [x, y, w, h, pr(CARD_EDGE, sw, sh)] as Array<Number>, label, fill, edged, font);
     }
 }
 

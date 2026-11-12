@@ -346,13 +346,19 @@ class Popup {
         var y = py(my, sw, sh);
         var w = px(btnX + btnW, sw, sh) - x;
         var h = py(my + POP_BTN_H, sw, sh) - y;
-        drawPill(dc, x, y, w, h, pr(CARD_EDGE, sw, sh), label, fill, edged, font);
+        drawPill(dc, [x, y, w, h, pr(CARD_EDGE, sw, sh)] as Array<Number>, label, fill, edged, font);
     }
 }
 
-// pill button, screen px. e = edge width. pop-up and tip screen both use it
-function drawPill(dc as Graphics.Dc, x as Number, y as Number, w as Number, h as Number, e as Number,
-        label as String, fill as Number, edged as Boolean, font as Graphics.FontDefinition) as Void {
+// pill button. box = [x, y, w, h, edge width], screen px. pop-up and tip
+// screen both use it. box array keeps it under api 3's 9 arg limit
+function drawPill(dc as Graphics.Dc, box as Array<Number>, label as String, fill as Number,
+        edged as Boolean, font as Graphics.FontDefinition) as Void {
+    var x = box[0];
+    var y = box[1];
+    var w = box[2];
+    var h = box[3];
+    var e = box[4];
     if (edged) {
         // dark on dark, the edge makes it read as a button
         dc.setColor(COL_CARD_EDGE, Graphics.COLOR_TRANSPARENT);
