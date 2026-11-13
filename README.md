@@ -95,20 +95,24 @@ work the same, but wasn't tested on its own. "(as X)" means it's the same
 watch as X under another name.
 
 - Forerunner: 165 (sim), 165 Music, 170, 170 Music, 265 (sim), 265s (sim),
-  570 42mm, 570 47mm, 70, 965 (sim), 970
+  570 42mm, 570 47mm, 70, 955 / Solar, 965 (sim), 970
 - Venu: Venu (sim), Venu 2 (sim), Venu 2 Plus, Venu 2S (sim), Venu 3 (sim),
   Venu 3S, Venu 4 41mm, Venu 4 45mm (sim), Venu Sq 2 (real watch),
   Venu Sq 2 Music, Venu Mercedes-Benz Collection
 - vívoactive: 3 Music (sim), 4 (sim), 4S (sim), 5 (sim), 6
-- fēnix: 7 (sim), 7X (sim), 8 43mm, 8 47mm / 51mm, 8 Pro 47mm / 51mm / MicroLED,
-  9 43mm, 9 47mm / 51mm, 9 Pro 43mm, 9 Pro 47mm, 9 Pro 51mm (sim), E
+- fēnix: 7 (sim), 7S (sim), 7S Pro, 7 Pro (sim),
+  7 Pro - Solar Edition (no Wi-Fi), 7X (sim), 7X Pro,
+  7X Pro - Solar Edition (no Wi-Fi), 8 43mm, 8 47mm / 51mm,
+  8 Pro 47mm / 51mm / MicroLED, 8 Solar 47mm, 8 Solar 51mm (sim), 9 43mm,
+  9 47mm / 51mm, 9 Pro 43mm, 9 Pro 47mm, 9 Pro 51mm (sim), 9 Pro Solar 47mm,
+  9 Pro Solar 51mm, E
 - epix: epix (Gen 2) (sim), epix Pro (Gen 2) 42mm, 47mm, 51mm
 - quatix: 7 (as fēnix 7), 7X Solar (as fēnix 7X), 7 Sapphire (as epix Gen 2),
   7 Pro (as epix Pro 47mm), 8 47mm / 51mm (as fēnix 8),
   8 Pro 47mm / 51mm (as fēnix 8 Pro)
 - tactix: 7 (as fēnix 7X), 7 – AMOLED Edition (as epix Pro 51mm),
-  8 47mm / 51mm (as fēnix 8)
-- Enduro: Enduro 2 (as fēnix 7X)
+  8 47mm / 51mm (as fēnix 8), 8 Solar 51mm (as fēnix 8 Solar 51mm)
+- Enduro: Enduro 2 (as fēnix 7X), Enduro 3, Enduro 4
 - D2: Air (sim), Air X10, Air X15 (as Venu 4 45mm), Mach 1,
   Mach 1 Pro (as epix Pro 51mm), Mach 2, Mach 2 Pro
 - Approach: S50, S70 42mm, S70 47mm, S72 43mm, S72 47mm
@@ -116,9 +120,15 @@ watch as X under another name.
 - MARQ: (Gen 2) Athlete, Adventurer, Captain, Golfer, Carbon Edition,
   Commander - Carbon Edition, Aviator; (Gen 3) Athlete, Adventurer, Aviator,
   Commander, Golfer, Diver
+- Legacy: Legacy Hero Captain Marvel (sim), Legacy Hero First Avenger,
+  Legacy Saga Darth Vader (sim), Legacy Saga Rey
 
-fēnix 7, fēnix 7X, vívoactive 4, vívoactive 4S, vívoactive 3 Music, quatix 7,
-quatix 7X Solar, tactix 7 and Enduro 2 have MIP screens.
+fēnix 7, 7S, 7S Pro, 7 Pro, 7 Pro - Solar Edition (no Wi-Fi), 7X, 7X Pro,
+7X Pro - Solar Edition (no Wi-Fi), 8 Solar 47mm, 8 Solar 51mm,
+9 Pro Solar 47mm and 9 Pro Solar 51mm, Forerunner 955 / Solar, vívoactive
+3 Music, 4 and 4S, Enduro 2, 3 and 4, quatix 7, quatix 7X Solar, tactix 7,
+tactix 8 Solar 51mm, and the Legacy Hero and Legacy Saga watches have MIP
+screens.
 Colours may look off on all of these 64-colour screens; a fix is planned.
 
 ## Limits
