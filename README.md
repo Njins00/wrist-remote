@@ -89,12 +89,37 @@ Wi-Fi as the Roku.
 
 ## Supported watches
 
-- Venu Sq 2: tested on a real watch.
-- Forerunner 265, Venu 3, Venu 2S, vívoactive 5, fēnix 9 Pro 51mm: tested in the simulator.
-- fēnix 7, fēnix 7X, vívoactive 4, vívoactive 4S, vívoactive 3 Music: tested in the simulator.
-  quatix 7 shares hardware with fēnix 7, and tactix 7, quatix 7X Solar and Enduro 2 share it
-  with fēnix 7X. They should work the same but weren't tested on their own.
-  Colours may look off on all of these 64-colour screens; a fix is planned.
+Venu Sq 2 is tested on a real watch. Watches marked (sim) are tested in the
+simulator. Every other watch shares its screen with a tested watch and should
+work the same, but wasn't tested on its own. "(as X)" means it's the same
+watch as X under another name.
+
+- Forerunner: 165 (sim), 165 Music, 170, 170 Music, 265 (sim), 265s (sim),
+  570 42mm, 570 47mm, 70, 965 (sim), 970
+- Venu: Venu (sim), Venu 2 (sim), Venu 2 Plus, Venu 2S (sim), Venu 3 (sim),
+  Venu 3S, Venu 4 41mm, Venu 4 45mm (sim), Venu Sq 2 (real watch),
+  Venu Sq 2 Music, Venu Mercedes-Benz Collection
+- vívoactive: 3 Music (sim), 4 (sim), 4S (sim), 5 (sim), 6
+- fēnix: 7 (sim), 7X (sim), 8 43mm, 8 47mm / 51mm, 8 Pro 47mm / 51mm / MicroLED,
+  9 43mm, 9 47mm / 51mm, 9 Pro 43mm, 9 Pro 47mm, 9 Pro 51mm (sim), E
+- epix: epix (Gen 2) (sim), epix Pro (Gen 2) 42mm, 47mm, 51mm
+- quatix: 7 (as fēnix 7), 7X Solar (as fēnix 7X), 7 Sapphire (as epix Gen 2),
+  7 Pro (as epix Pro 47mm), 8 47mm / 51mm (as fēnix 8),
+  8 Pro 47mm / 51mm (as fēnix 8 Pro)
+- tactix: 7 (as fēnix 7X), 7 – AMOLED Edition (as epix Pro 51mm),
+  8 47mm / 51mm (as fēnix 8)
+- Enduro: Enduro 2 (as fēnix 7X)
+- D2: Air (sim), Air X10, Air X15 (as Venu 4 45mm), Mach 1,
+  Mach 1 Pro (as epix Pro 51mm), Mach 2, Mach 2 Pro
+- Approach: S50, S70 42mm, S70 47mm, S72 43mm, S72 47mm
+- Descent: G2, Mk3 43mm, Mk3i 43mm, Mk3i 51mm
+- MARQ: (Gen 2) Athlete, Adventurer, Captain, Golfer, Carbon Edition,
+  Commander - Carbon Edition, Aviator; (Gen 3) Athlete, Adventurer, Aviator,
+  Commander, Golfer, Diver
+
+fēnix 7, fēnix 7X, vívoactive 4, vívoactive 4S, vívoactive 3 Music, quatix 7,
+quatix 7X Solar, tactix 7 and Enduro 2 have MIP screens.
+Colours may look off on all of these 64-colour screens; a fix is planned.
 
 ## Limits
 
