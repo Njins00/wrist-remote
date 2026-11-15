@@ -5,6 +5,8 @@ Tap the watch, the TV listens.
 
 Get it on the Connect IQ store: https://apps.garmin.com/en-US/apps/d5dd4bc3-d3fe-400e-8dde-e9b6420a9735
 
+Help: [setup steps and fixes](docs/HELP.md)
+
 ## Why I built it
 
 I keep losing my Roku remote. Under the couch, in the kitchen, and once in the fridge while grabbing a beer.
@@ -142,6 +144,8 @@ Colours may look off on all of these 64-colour screens; a fix is planned.
 - Your phone has to be within Bluetooth range of the watch.
 - One Roku at a time for now.
 
+Something not working? See [Help](docs/HELP.md).
+
 ## Build it yourself
 
 - Install the Connect IQ SDK.
@@ -156,6 +160,27 @@ Colours may look off on all of these 64-colour screens; a fix is planned.
 - v2: more than one Roku, and Find my Roku
 - v3: more controls
 - Later: TVs through Home Assistant
+
+## Changelog
+
+### 1.0.3
+- Fixed: help steps could be cut off on some watches (seen on Venu Sq 2).
+  Long steps now wrap fully and every line can be scrolled into view.
+- Added an iPhone step to the "Can't reach your Roku" help: open Garmin
+  Connect, keep it on screen, and tap Allow if asked about Local Network.
+- Clearer Wi-Fi step: not mobile data or a guest network.
+- New [help page](docs/HELP.md) with setup steps and fixes.
+
+### 1.0.2
+- Works on 64 more watches (75 in total), including Forerunner 165, 265S, 955, 965 and 970, Venu 2, 2 Plus, 3S and 4, vívoactive 6, epix Pro, fēnix 7 Pro, 8 and 9, Enduro 3, and more.
+
+### 1.0.1
+- Works on more watches, including older Connect IQ 3.x models like vívoactive 4 and 4S.
+- Smaller Tip jar QR code, so it fits smaller screens.
+- Fixed the Device type title overlapping the first option on small round screens.
+
+### 1.0.0
+- First release.
 
 ## Product notes
 
