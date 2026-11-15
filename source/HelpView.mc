@@ -153,10 +153,16 @@ function headerFont(dc as Graphics.Dc, title as String) as Number {
 
 // xtiny, split at spaces so each line fits. never cuts a word
 function headerLines(dc as Graphics.Dc, title as String) as Array<String> {
-    var maxW = headerTitleW(dc.getWidth(), dc.getHeight());
+    return wrapWords(dc, title, Graphics.FONT_XTINY, headerTitleW(dc.getWidth(), dc.getHeight()));
+}
+
+// split at spaces so each line fits maxW, as many lines as it takes. never
+// cuts a word: one wider than maxW gets its own line and runs over.
+// one word off rest per pass, so it always ends
+function wrapWords(dc as Graphics.Dc, text as String, font as Graphics.FontDefinition, maxW as Number) as Array<String> {
     var lines = [] as Array<String>;
     var line = "";
-    var rest = title;
+    var rest = text;
     while (rest.length() > 0) {
         // next word off the front
         var sp = rest.find(" ");
@@ -168,7 +174,7 @@ function headerLines(dc as Graphics.Dc, title as String) as Array<String> {
             rest = rest.substring(sp + 1, rest.length()) as String;
         }
         var next = line.length() == 0 ? word : line + " " + word;
-        if (line.length() > 0 && dc.getTextWidthInPixels(next, Graphics.FONT_XTINY) > maxW) {
+        if (line.length() > 0 && dc.getTextWidthInPixels(next, font) > maxW) {
             lines.add(line);
             line = word;
         } else {
@@ -319,14 +325,20 @@ class HelpView extends WatchUi.View {
     hidden var maxOffset as Number = 0;
     // worked out on the first onUpdate (needs a dc), texts never change
     hidden var ready as Boolean = false;
-    hidden var steps as Array<String> = [] as Array<String>;
-    hidden var stepY as Array<Number> = [] as Array<Number>;
+    // one entry per wrapped line, drawn one by one at our own lineH so the
+    // drawing and the scroll math use the exact same height
+    hidden var lineText as Array<String> = [] as Array<String>;
+    hidden var lineY as Array<Number> = [] as Array<Number>;
+    hidden var lineH as Number = 0;
+    hidden var band as Number = 0;      // pill strip height, screen px
     hidden var margin as Number = 0;
     // screen px, 52 scaled unless the title wraps. 0 until the first draw
     hidden var hdrH as Number = 0;
     // round: steps only show between the header and here (y 346), screen px
     hidden var round as Boolean;
     hidden var viewBot as Number = 0;
+    // screen px per scroll, set in layout
+    hidden var pageStep as Number = 0;
 
     function initialize(k as Number) {
         View.initialize();
@@ -377,36 +389,38 @@ class HelpView extends WatchUi.View {
         }
         var y = hdrH + gap(10, w, h);
 
-        // each step wrapped on its own, room for 6 lines so nothing's cut
-        var lineH = dc.getFontHeight(Graphics.FONT_XTINY);
+        // each step wrapped on its own, no line limit so nothing's cut
+        lineH = dc.getFontHeight(Graphics.FONT_XTINY);
         for (var i = 0; i < list.size(); i++) {
             var s = (i + 1).toString() + ". " + list[i];
-            var fit = Graphics.fitTextToArea(s, Graphics.FONT_XTINY, textW, lineH * 6, false);
-            var text = fit != null ? fit : s;
-            var lines = 1;
-            var chars = text.toCharArray();
-            for (var j = 0; j < chars.size(); j++) {
-                if (chars[j] == '\n') {
-                    lines++;
-                }
+            var lines = wrapWords(dc, s, Graphics.FONT_XTINY, textW);
+            for (var j = 0; j < lines.size(); j++) {
+                lineText.add(lines[j]);
+                lineY.add(y + j * lineH);
             }
-            steps.add(text);
-            stepY.add(y);
-            y += lines * lineH + gap(8, w, h);
+            y += lines.size() * lineH + gap(8, w, h);
         }
 
         var bottom = y + gap(12, w, h);
         maxOffset = bottom > viewBot ? bottom - viewBot : 0;
+
+        // smallest text window is with both pills up. scroll that minus a
+        // line, so every line is fully shown at some point
+        band = gap(PILL_H + PILL_PAD * 2, w, h);
+        var winBot = round ? viewBot : h - band;
+        pageStep = winBot - (hdrH + band) - lineH;
+        if (pageStep < lineH) {
+            pageStep = lineH;
+        }
         ready = true;
     }
 
-    // dir 1 = show more below, -1 = back up. ~60% of the scroll area per step
+    // dir 1 = show more below, -1 = back up. one window minus a line per step
     function scroll(dir as Number, screenH as Number) as Void {
         if (maxOffset == 0) {
             return;
         }
-        var bot = round ? viewBot : screenH;
-        offset += dir * (bot - hdrH) * 60 / 100;
+        offset += dir * pageStep;
         if (offset < 0) { offset = 0; }
         if (offset > maxOffset) { offset = maxOffset; }
         WatchUi.requestUpdate();
@@ -444,17 +458,25 @@ class HelpView extends WatchUi.View {
         dc.setColor(COL_BG, COL_BG);
         dc.clear();
 
-        // round: clipped to the window where the 280 column fits the circle
-        if (round) {
-            dc.setClip(0, hdrH, w, viewBot - hdrH);
+        // text window: under the header, or under the up pill when it shows.
+        // above the down pill on square, above y 346 on round where the 280
+        // column fits the circle. only whole lines get drawn, clip is backup
+        var top = offset > 0 ? hdrH + band : hdrH;
+        var bot = round ? viewBot : h;
+        if (!round && offset < maxOffset) {
+            bot = h - band;
         }
+        dc.setClip(0, top, w, bot - top);
         dc.setColor(COL_SOFT_TEXT, Graphics.COLOR_TRANSPARENT);
-        for (var i = 0; i < steps.size(); i++) {
-            dc.drawText(margin, stepY[i] - offset, Graphics.FONT_XTINY, steps[i],
-                Graphics.TEXT_JUSTIFY_LEFT);
+        for (var i = 0; i < lineText.size(); i++) {
+            var ly = lineY[i] - offset;
+            if (ly >= top && ly + lineH <= bot) {
+                dc.drawText(margin, ly, Graphics.FONT_XTINY, lineText[i],
+                    Graphics.TEXT_JUSTIFY_LEFT);
+            }
         }
+        dc.clearClip();
         if (round) {
-            dc.clearClip();
             drawRoundPills(dc, w, h);
             drawHeader(dc, title);
             return;
