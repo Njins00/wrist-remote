@@ -38,8 +38,9 @@ const POP_STEPS = [
     ],
     [
         "Check the Roku is on and connected to home Wi-Fi.",
-        "Your phone must be on the same Wi-Fi.",
+        "Your phone must be on the same Wi-Fi (not mobile data or a guest network).",
         "On the Roku: Settings › System › Advanced system settings › Control by mobile apps › Network access › Enabled.",
+        "iPhone: open Garmin Connect (not Connect IQ), keep it on screen, try again, and tap Allow if asked about Local Network.",
         "Check the IP on the watch: tap the gear, then Device."
     ],
     [
