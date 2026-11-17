@@ -29,6 +29,14 @@ const P2_MIN_PLAY = 54;
 const P2_MIN_ROW_H = 44;
 const P2_MIN_GAP = 4;
 
+// page dots on the right edge, both pages: x, page 1 y, page 2 y, radius.
+// mockup px, square then round. clear of page 1's rocker
+const DOTS_SQ = [310, 172, 188, 3];
+const DOTS_RND = [396, 200, 216, 4];
+const DOT_MIN_R = 3; // round, so they don't vanish on 218
+const COL_DOT_OFF = 0x5A6268;
+const COL_DOT_OFF_DIM = 0x2D3134;
+
 // icons are drawn for a 70 px tall side button and scale with it
 const P2_ICON_REF = 70;
 

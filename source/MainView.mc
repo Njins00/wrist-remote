@@ -389,6 +389,7 @@ class MainView extends WatchUi.View {
         } else {
             drawPage1(dc, btn, ink, accent);
         }
+        drawDots(dc, dim);
 
         header.draw(dc, self, dim);
 
@@ -439,6 +440,22 @@ class MainView extends WatchUi.View {
             dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
             drawIcon(dc, key, x + bw / 2, y + bh / 2);
         }
+    }
+
+    // two dots on the right, top one = page 1. dim behind a pop-up
+    hidden function drawDots(dc as Graphics.Dc, dim as Boolean) as Void {
+        var d = round ? DOTS_RND : DOTS_SQ;
+        var r = rs(d[3]);
+        if (round && r < DOT_MIN_R) {
+            r = DOT_MIN_R;
+        }
+        var on = dim ? COL_TEXT_DIM : COL_TEXT;
+        var off = dim ? COL_DOT_OFF_DIM : COL_DOT_OFF;
+        var x = sx(d[0]);
+        dc.setColor(pg == 1 ? on : off, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(x, sy(d[1]), r);
+        dc.setColor(pg == 2 ? on : off, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(x, sy(d[2]), r);
     }
 
     // play circle, rev/fwd, replay/options. already in screen px
