@@ -36,6 +36,15 @@ const P2_RND = [62, 70, 20, 78, 12, 250, 10, 52, 18, 16, 80, 366, 58, 14];
 // power: red and white in the mip palette, so it's the same everywhere
 const COL_POWER = 0xAA0000;
 const COL_POWER_DIM = 0x550000;
+// 2 s after a power send: grey circle with a check, taps do nothing.
+// palette greys too
+const POWER_BLOCK_MS = 2000;
+const COL_BLOCK = 0x555555;
+const COL_BLOCK_ICON = 0xAAAAAA;
+const TIMER_MIN_MS = 50; // shortest timer we start
+// draw-only, the check on a blocked power button. never sent (send()
+// turns away anything under 0 anyway)
+const KEY_BLOCKED = -2;
 
 // small round screens: nothing under these, screen px
 const P2_MIN_SIDE_W = 44;
@@ -154,6 +163,11 @@ function p2Icon(dc as Graphics.Dc, key as Number, cx as Number, cy as Number, q 
         dc.setPenWidth(p2Pen(3, q));
         dc.drawArc(cx, cy + p2s(1, q), p2s(9, q), Graphics.ARC_COUNTER_CLOCKWISE, 120, 60);
         dc.drawLine(cx, cy - p2s(11, q), cx, cy - p2s(1, q));
+    } else if (key == KEY_BLOCKED) {
+        // check mark: short stroke down, long one up
+        dc.setPenWidth(p2Pen(4, q));
+        dc.drawLine(cx - p2s(9, q), cy, cx - p2s(3, q), cy + p2s(6, q));
+        dc.drawLine(cx - p2s(3, q), cy + p2s(6, q), cx + p2s(10, q), cy - p2s(7, q));
     }
     dc.setPenWidth(1);
 }

@@ -115,6 +115,9 @@ class MainView extends WatchUi.View {
     // power button on (hidden switch in settings), and page 2's keys to match
     hidden var power as Boolean = false;
     hidden var keys2 as Array<Number> = P2_KEYS;
+    // when the last power send started (System.getTimer), -1 = not blocked.
+    // goes by the clock, the flash timer only wakes us up at the end
+    hidden var blockAt as Number = -1;
 
     function initialize(r as RokuConnector) {
         View.initialize();
@@ -185,7 +188,31 @@ class MainView extends WatchUi.View {
         flashTimer.stop();
         flashCell = -1; // the index was for the other page
         pg = n;
+        armBlock();
         WatchUi.requestUpdate();
+    }
+
+    // ms left on the power block, 0 = free. clears it once it's run out
+    hidden function blockLeft() as Number {
+        if (blockAt < 0) {
+            return 0;
+        }
+        var left = POWER_BLOCK_MS - (System.getTimer() - blockAt);
+        if (left <= 0) {
+            blockAt = -1;
+            return 0;
+        }
+        return left;
+    }
+
+    // block still on: borrow the flash timer to redraw when it ends. called
+    // wherever that timer got stopped, so power can't stay grey
+    hidden function armBlock() as Void {
+        var left = blockLeft();
+        if (left > 0) {
+            flashTimer.stop();
+            flashTimer.start(method(:endFlash), left < TIMER_MIN_MS ? TIMER_MIN_MS : left, false);
+        }
     }
 
     function page() as Number {
@@ -218,6 +245,7 @@ class MainView extends WatchUi.View {
         poke();
         flashCell = -1;
         loadMode();
+        armBlock();
         if (!played) {
             played = true;
             header.play();
@@ -236,6 +264,7 @@ class MainView extends WatchUi.View {
         flashTimer.stop();
         flashCell = -1; // the index was for the old table
         loadMode();
+        armBlock();
         header.refresh();
         WatchUi.requestUpdate();
     }
@@ -313,6 +342,11 @@ class MainView extends WatchUi.View {
         if (cell < 0 || ks[cell] < 0) {
             return;
         }
+        // power blocked: nothing at all, not even ending another flash
+        var isPower = ks[cell] == KEY_POWER;
+        if (isPower && blockLeft() > 0) {
+            return;
+        }
         // new tap ends any flash still showing
         flashTimer.stop();
         flashCell = -1;
@@ -331,6 +365,11 @@ class MainView extends WatchUi.View {
             showError(POP_BAD_IP);
         } else if (res == SEND_NO_PHONE) {
             showError(POP_NO_PHONE);
+        } else if (res == SEND_STARTED && isPower) {
+            // 2 s block from the tap, whatever the reply. the grey check is
+            // the feedback, no flash. busy/bad ip/no phone never get here
+            blockAt = System.getTimer();
+            armBlock();
         } else if (res == SEND_STARTED && popup == null) {
             // only real sends flash. popup check: onResult can fire inside send()
             flashCell = cell;
@@ -359,8 +398,11 @@ class MainView extends WatchUi.View {
         WatchUi.requestUpdate();
     }
 
+    // end of a flash or of the power block. a flash during the block
+    // hands the timer back to the block
     function endFlash() as Void {
         flashCell = -1;
+        armBlock();
         WatchUi.requestUpdate();
     }
 
@@ -377,6 +419,7 @@ class MainView extends WatchUi.View {
 
     function closePopup() as Void {
         popup = null;
+        armBlock(); // showError stopped the timer
         WatchUi.requestUpdate();
     }
 
@@ -477,19 +520,26 @@ class MainView extends WatchUi.View {
             var cx = c[0] + c[2] / 2;
             var cy = c[1] + c[3] / 2;
             var key = keys2[i];
+            var icon = ink;
             if (i == 0) {
                 dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
                 dc.fillCircle(cx, cy, c[2] / 2);
             } else if (key == KEY_POWER) {
-                // red circle, no label
-                var red = dim ? COL_POWER_DIM : COL_POWER;
-                dc.setColor(i == flashCell ? COL_BTN_PRESSED : red, Graphics.COLOR_TRANSPARENT);
+                // red circle, no label. blocked = grey with a check instead
+                // of the power sign, so it reads without colour too
+                var fill = dim ? COL_POWER_DIM : COL_POWER;
+                if (blockLeft() > 0) {
+                    fill = dim ? COL_BTN_DIM : COL_BLOCK;
+                    icon = dim ? COL_TEXT_DIM : COL_BLOCK_ICON;
+                    key = KEY_BLOCKED;
+                }
+                dc.setColor(fill, Graphics.COLOR_TRANSPARENT);
                 dc.fillCircle(cx, cy, c[2] / 2);
             } else {
                 dc.setColor(i == flashCell ? COL_BTN_PRESSED : btn, Graphics.COLOR_TRANSPARENT);
                 dc.fillRoundedRectangle(c[0], c[1], c[2], c[3], c[4]);
             }
-            dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
+            dc.setColor(icon, Graphics.COLOR_TRANSPARENT);
             p2Icon(dc, key, cx, cy, q);
         }
     }
