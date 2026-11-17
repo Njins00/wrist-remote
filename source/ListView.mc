@@ -1,6 +1,7 @@
 import Toybox.Graphics;
 import Toybox.Lang;
 import Toybox.System;
+import Toybox.Timer;
 import Toybox.WatchUi;
 
 // shared list page: rows of title + grey line under it, thin dividers, a
@@ -16,6 +17,14 @@ const LIST_PAD = 10;      // above the title and below the grey line
 const LIST_GAP = 2;       // between the two lines
 const LIST_CHEV_W = 32;   // kept free on the right of every row
 // long lines scroll with the Marquee in Header.mc, same as the room name
+
+// little pill at the bottom, gone after 2 s or on the next tap.
+// showToast needs api 3.4, we go down to 3.2 so it's drawn here
+const TOAST_MS = 2000;
+const TOAST_PAD_H = 12;   // screen px added to the font height
+const TOAST_PAD_W = 32;   // mockup px added to the text width
+const TOAST_BOT = 340;    // square: bottom edge, 320x360 px
+const RND_TOAST_Y = 330;  // round: centre, 416 px
 
 class ListView extends WatchUi.View {
     hidden var round as Boolean;
@@ -36,6 +45,9 @@ class ListView extends WatchUi.View {
     hidden var viewBot as Number = 0;
     hidden var offset as Number = 0;
     hidden var maxOffset as Number = 0;
+    // toast text, null = none. timer only made the first time one shows
+    hidden var toastText as String or Null = null;
+    hidden var toastTimer as Timer.Timer or Null = null;
 
     function initialize(t as String) {
         View.initialize();
@@ -50,6 +62,33 @@ class ListView extends WatchUi.View {
 
     // row i tapped, only rows with a chevron get here
     function open(i as Number) as Void {
+    }
+
+    // tap on a row without a chevron. nothing by default
+    function tapRow(i as Number) as Void {
+    }
+
+    function toast(t as String) as Void {
+        toastText = t;
+        var tt = toastTimer;
+        if (tt == null) {
+            tt = new Timer.Timer();
+            toastTimer = tt;
+        }
+        tt.stop();
+        tt.start(method(:hideToast), TOAST_MS, false);
+        WatchUi.requestUpdate();
+    }
+
+    function hideToast() as Void {
+        var tt = toastTimer;
+        if (tt != null) {
+            tt.stop();
+        }
+        if (toastText != null) {
+            toastText = null;
+            WatchUi.requestUpdate();
+        }
     }
 
     // back goes up one level
@@ -75,6 +114,7 @@ class ListView extends WatchUi.View {
 
     function onHide() as Void {
         marq.stop();
+        hideToast();
     }
 
     hidden function pw(v as Number, w as Number, h as Number) as Number {
@@ -154,6 +194,7 @@ class ListView extends WatchUi.View {
         var ds = System.getDeviceSettings();
         var w = ds.screenWidth;
         var h = ds.screenHeight;
+        hideToast(); // any tap clears it, then carries on
         if (backHitH(x, y, w, hdrH)) {
             back();
             return;
@@ -181,6 +222,8 @@ class ListView extends WatchUi.View {
             if (cy >= rowY[i] && cy < rowY[i] + rowH[i]) {
                 if (rows[i][2] as Boolean) {
                     open(i);
+                } else {
+                    tapRow(i);
                 }
                 return;
             }
@@ -219,8 +262,22 @@ class ListView extends WatchUi.View {
         dc.clearClip();
 
         drawPills(dc, w, h);
+        drawToast(dc, w, h);
         // header last so the rows slide under it
         drawHeader(dc, title);
+    }
+
+    // same pill as the pop-up buttons, edged, centred. xtiny text
+    hidden function drawToast(dc as Graphics.Dc, w as Number, h as Number) as Void {
+        var t = toastText;
+        if (t == null) {
+            return;
+        }
+        var f = Graphics.FONT_XTINY;
+        var th = dc.getFontHeight(f) + TOAST_PAD_H;
+        var tw = dc.getTextWidthInPixels(t, f) + pw(TOAST_PAD_W, w, h);
+        var y = round ? ry(RND_TOAST_Y, w, h) - th / 2 : hy(TOAST_BOT, h) - th;
+        drawPill(dc, [(w - tw) / 2, y, tw, th, pw(CARD_EDGE, w, h)] as Array<Number>, t, COL_BTN, true, f);
     }
 
     // one line of text from top y. too wide = clipped to its box and scrolled
