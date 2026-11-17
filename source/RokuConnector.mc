@@ -19,7 +19,13 @@ enum {
     KEY_PLAY,
     KEY_VOL_UP,
     KEY_VOL_DOWN,
-    KEY_MUTE
+    KEY_MUTE,
+    // page 2. play/pause is KEY_PLAY above
+    KEY_REV,
+    KEY_FWD,
+    KEY_REPLAY,
+    KEY_INFO,
+    KEY_POWER
 }
 
 // what send() says right away
@@ -51,7 +57,12 @@ const KEY_PATHS = [
     "/keypress/Play",
     "/keypress/VolumeUp", // roku tvs. sticks only pass it on over HDMI-CEC and failed on two tvs, so onboarding turns these off for sticks
     "/keypress/VolumeDown",
-    "/keypress/VolumeMute"
+    "/keypress/VolumeMute",
+    "/keypress/Rev",
+    "/keypress/Fwd",
+    "/keypress/InstantReplay",
+    "/keypress/Info", // the * options button
+    "/keypress/Power" // toggle only. no PowerOn/PowerOff
 ];
 
 const REPLY_TIMEOUT_MS = 5000; // give up after 5 s, no retry
