@@ -4,7 +4,7 @@ import Toybox.System;
 
 // settings page (from the gear) and the device page under it. plain lists
 // (ListView.mc). they send nothing. the picker saves the type, the only
-// write here is the hidden unlock flag
+// writes here are the hidden unlock flag and the power button switch
 
 // keep in step with manifest.xml, connect iq can't read it
 const APP_VERSION = "1.0.3";
@@ -20,6 +20,15 @@ function powerUnlocked() as Boolean {
     var v = Application.Storage.getValue("powerUnlocked");
     return v instanceof Boolean && v;
 }
+
+// the switch itself, off by default. watch only, not a phone setting.
+// only counts once unlocked
+function powerButtonOn() as Boolean {
+    var v = Application.Storage.getValue("powerButton");
+    return powerUnlocked() && v instanceof Boolean && v;
+}
+
+const POWER_ROW = 3; // last row on the device page, only after the unlock
 
 class SettingsView extends ListView {
     hidden var taps as Number = 0;
@@ -101,10 +110,22 @@ class DeviceView extends ListView {
             ["Name", name != null ? name : "Not set", true],
             ["Device type", TYPE_TITLES[deviceType()] as String, true]
         ] as Array<Array>;
+        if (powerUnlocked()) {
+            rows.add(["Power button", "Roku TV only", false, powerButtonOn() ? "On" : "Off"]);
+        }
     }
 
     function open(i as Number) as Void {
         var pages = [PAGE_IP, PAGE_NAME, PAGE_TYPE];
         getRemoteApp().open(pages[i] as Number);
+    }
+
+    // flip it right here, the remote picks it up when we go back
+    function tapRow(i as Number) as Void {
+        if (i != POWER_ROW || !powerUnlocked()) {
+            return;
+        }
+        Application.Storage.setValue("powerButton", !powerButtonOn());
+        refresh();
     }
 }

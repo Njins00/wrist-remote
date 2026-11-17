@@ -16,6 +16,7 @@ const RND_LIST_W = 280;
 const LIST_PAD = 10;      // above the title and below the grey line
 const LIST_GAP = 2;       // between the two lines
 const LIST_CHEV_W = 32;   // kept free on the right of every row
+const LIST_VAL_GAP = 10;  // between the text and a value on the right (Off/On)
 // long lines scroll with the Marquee in Header.mc, same as the room name
 
 // little pill at the bottom, gone after 2 s or on the next tap.
@@ -29,7 +30,8 @@ const RND_TOAST_Y = 330;  // round: centre, 416 px
 class ListView extends WatchUi.View {
     hidden var round as Boolean;
     hidden var title as String;
-    // filled by load(): [title, grey line, opens a page]
+    // filled by load(): [title, grey line, opens a page], plus an optional
+    // value drawn on the right instead of a chevron, like "Off"
     hidden var rows as Array<Array> = [] as Array<Array>;
     hidden var marq as Marquee;
     // layout, screen px, unscrolled. redone after refresh()
@@ -138,7 +140,17 @@ class ListView extends WatchUi.View {
             colX = hx(LIST_X, w);
             colW = hx(LIST_X + LIST_W, w) - colX;
         }
-        textW = colW - pw(LIST_CHEV_W, w, h);
+        // right side kept free for the chevron, or the widest value if wider
+        var side = pw(LIST_CHEV_W, w, h);
+        for (var i = 0; i < rows.size(); i++) {
+            if (rows[i].size() > 3) {
+                var vw = dc.getTextWidthInPixels(rows[i][3] as String, Graphics.FONT_TINY) + pw(LIST_VAL_GAP, w, h);
+                if (vw > side) {
+                    side = vw;
+                }
+            }
+        }
+        textW = colW - side;
         loopGap = pw(TOP_LOOP_GAP, w, h);
 
         rowY = [] as Array<Number>;
@@ -252,6 +264,11 @@ class ListView extends WatchUi.View {
             if (rows[i][2] as Boolean) {
                 dc.setColor(COL_ICON, Graphics.COLOR_TRANSPARENT);
                 drawChevron(dc, colX + colW - pw(12, w, h), y + rowH[i] / 2, 1, 0);
+            } else if (rows[i].size() > 3) {
+                // the word itself says the state, no colour needed
+                dc.setColor(COL_TEXT, Graphics.COLOR_TRANSPARENT);
+                dc.drawText(colX + colW, y + rowH[i] / 2, Graphics.FONT_TINY, rows[i][3] as String,
+                    Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
             }
             // thin line between rows, not after the last one
             if (i < rows.size() - 1) {

@@ -6,6 +6,8 @@ import Toybox.Lang;
 
 // play first, it's the circle (same trick as OK on page 1)
 const P2_KEYS = [KEY_PLAY, KEY_REV, KEY_FWD, KEY_REPLAY, KEY_INFO];
+// power button switched on in settings: one more round button, last
+const P2_KEYS_PWR = [KEY_PLAY, KEY_REV, KEY_FWD, KEY_REPLAY, KEY_INFO, KEY_POWER];
 
 // square, 320x360 mockup px: x, y, w, h, radius. play is its circle's box.
 // centred between the header (56) and 346
@@ -16,17 +18,31 @@ const P2_RECTS = [
     [35, 223, 120, 50, 16],
     [165, 223, 120, 50, 16]
 ];
+// same with the power circle under the grid, whole block moves up
+const P2_RECTS_PWR = [
+    [121, 94, 78, 78, 39],
+    [45, 98, 62, 70, 20],
+    [213, 98, 62, 70, 20],
+    [35, 188, 120, 50, 16],
+    [165, 188, 120, 50, 16],
+    [132, 252, 56, 56, 28]
+];
 
 // round sizes, 416 mockup px: rev/fwd w, h, r, play, gap between them,
 // bottom grid w, its gap, row h, row r, gap between the rows,
-// header bottom, lowest y the grid fits the circle
-const P2_RND = [62, 70, 20, 78, 12, 250, 10, 52, 18, 16, 80, 366];
+// header bottom, lowest y the grid fits the circle, power, gap above it
+const P2_RND = [62, 70, 20, 78, 12, 250, 10, 52, 18, 16, 80, 366, 58, 14];
+
+// power: red and white in the mip palette, so it's the same everywhere
+const COL_POWER = 0xAA0000;
+const COL_POWER_DIM = 0x550000;
 
 // small round screens: nothing under these, screen px
 const P2_MIN_SIDE_W = 44;
 const P2_MIN_SIDE_H = 50;
 const P2_MIN_PLAY = 54;
 const P2_MIN_ROW_H = 44;
+const P2_MIN_POWER = 44;
 const P2_MIN_GAP = 4;
 
 // page dots on the right edge, both pages: x, page 1 y, page 2 y, radius.
@@ -45,8 +61,9 @@ function p2Min(v as Number, m as Number) as Number {
 }
 
 // round layout in screen px, inside the sm circle at 0,0 (caller adds the
-// offsets). scaled from 416, then the floors, then the block gets centred
-function p2Round(sm as Number) as Array<Array<Number>> {
+// offsets). scaled from 416, then the floors, then the block gets centred.
+// power = add the round power button under the grid
+function p2Round(sm as Number, power as Boolean) as Array<Array<Number>> {
     var t = P2_RND;
     var sideW = p2Min(t[0] * sm / RND_MOCK, P2_MIN_SIDE_W);
     var sideH = p2Min(t[1] * sm / RND_MOCK, P2_MIN_SIDE_H);
@@ -61,8 +78,13 @@ function p2Round(sm as Number) as Array<Array<Number>> {
     var vGap = p2Min(t[9] * sm / RND_MOCK, 6);
     var hdr = t[10] * sm / RND_MOCK;
     var bot = t[11] * sm / RND_MOCK;
+    var pwr = p2Min(t[12] * sm / RND_MOCK, P2_MIN_POWER);
+    var pGap = p2Min(t[13] * sm / RND_MOCK, 6);
 
     var block = play + vGap + rowH;
+    if (power) {
+        block += pGap + pwr;
+    }
     var top = (hdr + bot) / 2 - block / 2;
     if (top < hdr + 2) {
         top = hdr + 2;
@@ -70,13 +92,17 @@ function p2Round(sm as Number) as Array<Array<Number>> {
     var cx = sm / 2;
     var sideY = top + (play - sideH) / 2;
     var rowY = top + play + vGap;
-    return [
+    var out = [
         [cx - play / 2, top, play, play, play / 2],
         [cx - play / 2 - gap - sideW, sideY, sideW, sideH, sideR],
         [cx + play / 2 + gap, sideY, sideW, sideH, sideR],
         [cx - gridW / 2, rowY, rowW, rowH, rowR],
         [cx + gridW / 2 - rowW, rowY, rowW, rowH, rowR]
     ] as Array<Array<Number>>;
+    if (power) {
+        out.add([cx - pwr / 2, rowY + rowH + pGap, pwr, pwr, pwr / 2]);
+    }
+    return out;
 }
 
 // design px (70 px button) -> screen px
@@ -123,6 +149,11 @@ function p2Icon(dc as Graphics.Dc, key as Number, cx as Number, cy as Number, q 
         dc.drawLine(cx, cy - p2s(10, q), cx, cy + p2s(10, q));
         dc.drawLine(cx - dx, cy - dy, cx + dx, cy + dy);
         dc.drawLine(cx - dx, cy + dy, cx + dx, cy - dy);
+    } else if (key == KEY_POWER) {
+        // power symbol: ring open at the top, line through the gap
+        dc.setPenWidth(p2Pen(3, q));
+        dc.drawArc(cx, cy + p2s(1, q), p2s(9, q), Graphics.ARC_COUNTER_CLOCKWISE, 120, 60);
+        dc.drawLine(cx, cy - p2s(11, q), cx, cy - p2s(1, q));
     }
     dc.setPenWidth(1);
 }

@@ -112,6 +112,9 @@ class MainView extends WatchUi.View {
     hidden var pg as Number = 1;
     // page 2 buttons in screen px (Page2.mc), worked out in onLayout
     hidden var p2 as Array<Array<Number>> = [] as Array<Array<Number>>;
+    // power button on (hidden switch in settings), and page 2's keys to match
+    hidden var power as Boolean = false;
+    hidden var keys2 as Array<Number> = P2_KEYS;
 
     function initialize(r as RokuConnector) {
         View.initialize();
@@ -137,6 +140,12 @@ class MainView extends WatchUi.View {
             rects = vol ? VOL_RECTS : CELL_RECTS;
             rocker = ROCKER;
         }
+        // page 2 with or without power. before the first layout onLayout does it
+        power = powerButtonOn();
+        keys2 = power ? P2_KEYS_PWR : P2_KEYS;
+        if (p2.size() > 0) {
+            layout2();
+        }
     }
 
     // runs before the first onShow, so the header knows if the name scrolls
@@ -149,16 +158,17 @@ class MainView extends WatchUi.View {
     // page 2 to screen px. round has its own floors, square just scales
     hidden function layout2() as Void {
         if (round) {
-            p2 = p2Round(sm);
+            p2 = p2Round(sm, power);
             for (var i = 0; i < p2.size(); i++) {
                 p2[i][0] += ox;
                 p2[i][1] += oy;
             }
             return;
         }
+        var t = power ? P2_RECTS_PWR : P2_RECTS;
         p2 = [] as Array<Array<Number>>;
-        for (var i = 0; i < P2_RECTS.size(); i++) {
-            var c = P2_RECTS[i];
+        for (var i = 0; i < t.size(); i++) {
+            var c = t[i];
             var x = sx(c[0]);
             var y = sy(c[1]);
             p2.add([x, y, sx(c[0] + c[2]) - x, sy(c[1] + c[3]) - y, rs(c[4])]);
@@ -182,20 +192,20 @@ class MainView extends WatchUi.View {
         return pg;
     }
 
-    // page 2 cell under x,y (screen px). play is a circle. -1 if none
+    // page 2 cell under x,y (screen px). play and power are circles. -1 if none
     function cellAt2(x as Number, y as Number) as Number {
         var s = rs(SLACK);
-        var c = p2[0];
-        var half = c[2] / 2;
-        var dx = x - (c[0] + half);
-        var dy = y - (c[1] + half);
-        var r = half + s;
-        if (dx * dx + dy * dy <= r * r) {
-            return 0;
-        }
-        for (var i = 1; i < p2.size(); i++) {
-            c = p2[i];
-            if (x >= c[0] - s && x < c[0] + c[2] + s &&
+        for (var i = 0; i < p2.size(); i++) {
+            var c = p2[i];
+            if (i == 0 || keys2[i] == KEY_POWER) {
+                var half = c[2] / 2;
+                var dx = x - (c[0] + half);
+                var dy = y - (c[1] + half);
+                var r = half + s;
+                if (dx * dx + dy * dy <= r * r) {
+                    return i;
+                }
+            } else if (x >= c[0] - s && x < c[0] + c[2] + s &&
                 y >= c[1] - s && y < c[1] + c[3] + s) {
                 return i;
             }
@@ -298,7 +308,7 @@ class MainView extends WatchUi.View {
             }
             return;
         }
-        var ks = pg == 2 ? P2_KEYS : keys;
+        var ks = pg == 2 ? keys2 : keys;
         var cell = pg == 2 ? cellAt2(x, y) : cellAt(mx, my);
         if (cell < 0 || ks[cell] < 0) {
             return;
@@ -385,7 +395,7 @@ class MainView extends WatchUi.View {
         }
 
         if (pg == 2) {
-            drawPage2(dc, btn, ink, accent);
+            drawPage2(dc, btn, ink, accent, dim);
         } else {
             drawPage1(dc, btn, ink, accent);
         }
@@ -459,21 +469,28 @@ class MainView extends WatchUi.View {
     }
 
     // play circle, rev/fwd, replay/options. already in screen px
-    hidden function drawPage2(dc as Graphics.Dc, btn as Number, ink as Number, accent as Number) as Void {
+    hidden function drawPage2(dc as Graphics.Dc, btn as Number, ink as Number, accent as Number,
+            dim as Boolean) as Void {
         var q = p2[1][3]; // side button height, icons scale with it
         for (var i = 0; i < p2.size(); i++) {
             var c = p2[i];
             var cx = c[0] + c[2] / 2;
             var cy = c[1] + c[3] / 2;
+            var key = keys2[i];
             if (i == 0) {
                 dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+                dc.fillCircle(cx, cy, c[2] / 2);
+            } else if (key == KEY_POWER) {
+                // red circle, no label
+                var red = dim ? COL_POWER_DIM : COL_POWER;
+                dc.setColor(i == flashCell ? COL_BTN_PRESSED : red, Graphics.COLOR_TRANSPARENT);
                 dc.fillCircle(cx, cy, c[2] / 2);
             } else {
                 dc.setColor(i == flashCell ? COL_BTN_PRESSED : btn, Graphics.COLOR_TRANSPARENT);
                 dc.fillRoundedRectangle(c[0], c[1], c[2], c[3], c[4]);
             }
             dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
-            p2Icon(dc, P2_KEYS[i], cx, cy, q);
+            p2Icon(dc, key, cx, cy, q);
         }
     }
 
