@@ -43,6 +43,10 @@ Your router hands out addresses and can give the Roku a new one, for example aft
 
 Volume over the network only works on **Roku TVs**. On Roku sticks and boxes the TV controls the volume, so the buttons are off by default. You can try turning them on in the Connect IQ app settings (Show volume buttons). Some TVs respond, many don't.
 
+## Page 2
+
+Swipe up on the remote for more controls: Rewind, Play/Pause, Fast forward, Replay and Options (✱). Swipe down or press Back to return. On watches with Up and Down buttons, those switch pages too.
+
 ## Room name
 
 Set a room name (like Living room) in the Connect IQ app settings so it shows at the top of the remote. Keep it generic and don't use personal names.

@@ -23,6 +23,7 @@ No ads, no subscription, always open source.
 
 - Up, down, left, right and OK
 - Back, Home and Play/Pause
+- Rewind, Play/Pause, fast forward, Replay and Options on a second page (swipe up)
 - Volume up, down and mute (optional, for Roku TVs)
 - A room name at the top so you know which Roku you're on
 - First-run setup that asks if you have a Roku TV or a stick/box
@@ -131,7 +132,7 @@ fēnix 7, 7S, 7S Pro, 7 Pro, 7 Pro - Solar Edition (no Wi-Fi), 7X, 7X Pro,
 3 Music, 4 and 4S, Enduro 2, 3 and 4, quatix 7, quatix 7X Solar, tactix 7,
 tactix 8 Solar 51mm, and the Legacy Hero and Legacy Saga watches have MIP
 screens.
-Colours may look off on all of these 64-colour screens; a fix is planned.
+Colours may look off on MIP screens; a fix is planned.
 
 ## Limits
 
@@ -162,6 +163,11 @@ Something not working? See [Help](docs/HELP.md).
 - Later: TVs through Home Assistant
 
 ## Changelog
+
+### 1.1.0
+- New second page: swipe up on the remote for Rewind, Play/Pause, Fast
+  forward, Replay and Options. Swipe down or press Back to return.
+- New blue look. It's the same blue on every watch, MIP screens included.
 
 ### 1.0.3
 - Fixed: help steps could be cut off on some watches (seen on Venu Sq 2).
