@@ -108,6 +108,10 @@ class MainView extends WatchUi.View {
     hidden var sm as Number = RND_MOCK;
     hidden var ox as Number = 0;
     hidden var oy as Number = 0;
+    // which page is up. new view = page 1, settings and back keep it
+    hidden var pg as Number = 1;
+    // page 2 buttons in screen px (Page2.mc), worked out in onLayout
+    hidden var p2 as Array<Array<Number>> = [] as Array<Array<Number>>;
 
     function initialize(r as RokuConnector) {
         View.initialize();
@@ -139,6 +143,64 @@ class MainView extends WatchUi.View {
     function onLayout(dc as Graphics.Dc) as Void {
         setSize(dc);
         header.measure(dc, self);
+        layout2();
+    }
+
+    // page 2 to screen px. round has its own floors, square just scales
+    hidden function layout2() as Void {
+        if (round) {
+            p2 = p2Round(sm);
+            for (var i = 0; i < p2.size(); i++) {
+                p2[i][0] += ox;
+                p2[i][1] += oy;
+            }
+            return;
+        }
+        p2 = [] as Array<Array<Number>>;
+        for (var i = 0; i < P2_RECTS.size(); i++) {
+            var c = P2_RECTS[i];
+            var x = sx(c[0]);
+            var y = sy(c[1]);
+            p2.add([x, y, sx(c[0] + c[2]) - x, sy(c[1] + c[3]) - y, rs(c[4])]);
+        }
+    }
+
+    // swipes and the page buttons. always a set page, never a toggle, so a
+    // doubled event can't flip it back. nothing while a pop-up is up
+    function goPage(n as Number) as Void {
+        poke();
+        if (n == pg || popup != null) {
+            return;
+        }
+        flashTimer.stop();
+        flashCell = -1; // the index was for the other page
+        pg = n;
+        WatchUi.requestUpdate();
+    }
+
+    function page() as Number {
+        return pg;
+    }
+
+    // page 2 cell under x,y (screen px). play is a circle. -1 if none
+    function cellAt2(x as Number, y as Number) as Number {
+        var s = rs(SLACK);
+        var c = p2[0];
+        var half = c[2] / 2;
+        var dx = x - (c[0] + half);
+        var dy = y - (c[1] + half);
+        var r = half + s;
+        if (dx * dx + dy * dy <= r * r) {
+            return 0;
+        }
+        for (var i = 1; i < p2.size(); i++) {
+            c = p2[i];
+            if (x >= c[0] - s && x < c[0] + c[2] + s &&
+                y >= c[1] - s && y < c[1] + c[3] + s) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     // also runs when we come back from settings, so the rocker is right away
@@ -236,8 +298,9 @@ class MainView extends WatchUi.View {
             }
             return;
         }
-        var cell = cellAt(mx, my);
-        if (cell < 0 || keys[cell] < 0) {
+        var ks = pg == 2 ? P2_KEYS : keys;
+        var cell = pg == 2 ? cellAt2(x, y) : cellAt(mx, my);
+        if (cell < 0 || ks[cell] < 0) {
             return;
         }
         // new tap ends any flash still showing
@@ -248,7 +311,7 @@ class MainView extends WatchUi.View {
         var was = sending;
         sending = true;
         header.pause();
-        var res = roku.send(keys[cell], method(:onResult));
+        var res = roku.send(ks[cell], method(:onResult));
         if (res == SEND_BUSY) {
             sending = was; // the earlier request is still going
         } else if (res != SEND_STARTED) {
@@ -318,9 +381,24 @@ class MainView extends WatchUi.View {
         var ink = dim ? COL_TEXT_DIM : COL_TEXT;
         var accent = dim ? COL_ACCENT_DIM : COL_ACCENT;
         if (flashCell == 0) {
-            accent = COL_ACCENT_PRESSED;
+            accent = COL_ACCENT_PRESSED; // OK or play, both are cell 0
         }
 
+        if (pg == 2) {
+            drawPage2(dc, btn, ink, accent);
+        } else {
+            drawPage1(dc, btn, ink, accent);
+        }
+
+        header.draw(dc, self, dim);
+
+        if (p != null) {
+            p.draw(dc);
+        }
+    }
+
+    // d-pad, bottom row, rocker if it's on
+    hidden function drawPage1(dc as Graphics.Dc, btn as Number, ink as Number, accent as Number) as Void {
         // OK: accent circle
         var ok = rects[0];
         var half = ok[2] / 2;
@@ -361,11 +439,24 @@ class MainView extends WatchUi.View {
             dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
             drawIcon(dc, key, x + bw / 2, y + bh / 2);
         }
+    }
 
-        header.draw(dc, self, dim);
-
-        if (p != null) {
-            p.draw(dc);
+    // play circle, rev/fwd, replay/options. already in screen px
+    hidden function drawPage2(dc as Graphics.Dc, btn as Number, ink as Number, accent as Number) as Void {
+        var q = p2[1][3]; // side button height, icons scale with it
+        for (var i = 0; i < p2.size(); i++) {
+            var c = p2[i];
+            var cx = c[0] + c[2] / 2;
+            var cy = c[1] + c[3] / 2;
+            if (i == 0) {
+                dc.setColor(accent, Graphics.COLOR_TRANSPARENT);
+                dc.fillCircle(cx, cy, c[2] / 2);
+            } else {
+                dc.setColor(i == flashCell ? COL_BTN_PRESSED : btn, Graphics.COLOR_TRANSPARENT);
+                dc.fillRoundedRectangle(c[0], c[1], c[2], c[3], c[4]);
+            }
+            dc.setColor(ink, Graphics.COLOR_TRANSPARENT);
+            p2Icon(dc, P2_KEYS[i], cx, cy, q);
         }
     }
 
@@ -488,17 +579,42 @@ class MainDelegate extends WatchUi.BehaviorDelegate {
         return true;
     }
 
-    // back closes the pop-up if one is open, otherwise default (exit)
+    // back closes the pop-up if one is open, then page 2 -> page 1,
+    // otherwise default (exit)
     function onBack() as Boolean {
         if (view.popupOpen()) {
             view.closePopup();
             return true;
         }
+        if (view.page() == 2) {
+            view.goPage(1);
+            return true;
+        }
         return false;
     }
 
-    // eat all swipes so a sloppy tap can't close the remote
+    // up = page 2, down = page 1. left/right still get eaten so a sloppy
+    // tap can't close the remote. returning true means no page event too
     function onSwipe(evt as WatchUi.SwipeEvent) as Boolean {
+        var dir = evt.getDirection();
+        if (dir == WatchUi.SWIPE_UP) {
+            view.goPage(2);
+        } else if (dir == WatchUi.SWIPE_DOWN) {
+            view.goPage(1);
+        } else {
+            view.poke();
+        }
+        return true;
+    }
+
+    // up/down buttons (fenix 7 and co), same as the swipes
+    function onNextPage() as Boolean {
+        view.goPage(2);
+        return true;
+    }
+
+    function onPreviousPage() as Boolean {
+        view.goPage(1);
         return true;
     }
 }
