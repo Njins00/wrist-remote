@@ -17,13 +17,14 @@ const FLASH_MS = 150; // pressed look after a send
 const COL_BG = 0x000000;
 const COL_BTN = 0x1C1F22;
 const COL_TEXT = 0xF2F4F5;
-const COL_ACCENT = 0x6C2BD9;
+// blue is in the 64-colour mip palette, so every watch shows the same one
+const COL_ACCENT = 0x0055FF;
 const COL_BTN_PRESSED = 0x3A3F44;
-const COL_ACCENT_PRESSED = 0x8A4DFF;
+const COL_ACCENT_PRESSED = 0x55AAFF;
 // remote behind the pop-up. solid colours, no transparency
 const COL_BTN_DIM = 0x0E0F11;
 const COL_TEXT_DIM = 0x5A5C5D;
-const COL_ACCENT_DIM = 0x2F135F;
+const COL_ACCENT_DIM = 0x000055;
 
 // volume off. OK first so it wins where its slack touches an arm
 const CELL_KEYS = [KEY_SELECT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_BACK, KEY_HOME, KEY_PLAY];

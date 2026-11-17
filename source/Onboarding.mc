@@ -18,11 +18,11 @@ enum {
     TYPE_STICK
 }
 
-const COL_TILE_BG = 0x24153F;
-const COL_TILE_ICON = 0xB99BFA;
+const COL_TILE_BG = 0x000055;
+const COL_TILE_ICON = 0x55AAFF;
 // setup behind the pop-up. solid colours like the remote's dim ones
-const COL_TILE_BG_DIM = 0x120A1F;
-const COL_TILE_ICON_DIM = 0x453A5E;
+const COL_TILE_BG_DIM = 0x00001F;
+const COL_TILE_ICON_DIM = 0x33445E;
 const COL_SOFT_TEXT_DIM = 0x45484A;
 
 // mockup px. one big button at the bottom of each screen
@@ -413,7 +413,7 @@ class OnboardView extends WatchUi.View {
         var tileIcon = dim ? COL_TILE_ICON_DIM : COL_TILE_ICON;
         var ink = dim ? COL_TEXT_DIM : COL_TEXT;
 
-        // violet tile with a little tv drawn from shapes. round: pinned,
+        // blue tile with a little tv drawn from shapes. round: pinned,
         // only the steps scroll
         var top = round ? 0 : offset;
         var tx = hx(TILE_X, w);
@@ -503,7 +503,7 @@ class OnboardView extends WatchUi.View {
             var cw = px(c[0] + c[2], w, h) - x;
             var ch = py(c[1] + c[3], w, h) - y0;
             var r = pr(TYPE_CARD_R, w, h);
-            // edge colour full size, then the fill inside it. picked = thicker violet edge
+            // edge colour full size, then the fill inside it. picked = thicker blue edge
             var on = i == picked;
             var e = pr(on ? 3 : 2, w, h);
             dc.setColor(on ? COL_ACCENT : COL_CARD_EDGE, Graphics.COLOR_TRANSPARENT);
