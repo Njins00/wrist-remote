@@ -7,7 +7,7 @@ import Toybox.System;
 // writes here are the hidden unlock flag and the power button switch
 
 // keep in step with manifest.xml, connect iq can't read it
-const APP_VERSION = "1.0.3";
+const APP_VERSION = "1.1.0";
 
 // 5 taps on the version row turns on the hidden power button switch.
 // more than 2 s between taps starts the count again
